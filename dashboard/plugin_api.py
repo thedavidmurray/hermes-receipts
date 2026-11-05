@@ -7,10 +7,11 @@ import io
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import sqlite3
 from hermes_constants import get_hermes_home
 from plugins.plugin_storage import plugin_data_dir
+from hermes_cli.web_deps import late
 
 # Dashboard API files are loaded as standalone modules, not package children.
 _ROOT = Path(__file__).resolve().parent.parent
@@ -22,6 +23,12 @@ _SPEC.loader.exec_module(_LIB)
 receipt_from_state, render_png, render_text = _LIB.receipt_from_state, _LIB.render_png, _LIB.render_text
 
 router = APIRouter()
+
+
+def _authorize(request: Request):
+    # A hosted plugin receives the gateway's per-request admission over private IPC.
+    # Keep a route-local guard too; a bare plugin-host request cannot bypass it.
+    late('_require_token')(request)
 
 
 def _session_profile_guard(session_id: str) -> None:
@@ -45,7 +52,7 @@ def _session_profile_guard(session_id: str) -> None:
         raise HTTPException(status_code=404, detail='Session unavailable') from exc
 
 
-@router.get('/current')
+@router.get('/current', dependencies=[Depends(_authorize)])
 def current(session_id: str = Query(..., min_length=1, max_length=256)):
     """Active-pane-only public preview; absent manifest can NEVER certify done."""
     _session_profile_guard(session_id)
@@ -68,7 +75,7 @@ def current(session_id: str = Query(..., min_length=1, max_length=256)):
         raise HTTPException(status_code=404, detail='Session unavailable') from exc
 
 
-@router.get('/last')
+@router.get('/last', dependencies=[Depends(_authorize)])
 def last(session_id: str = Query(..., min_length=1, max_length=256)):
     _session_profile_guard(session_id)
     try:

@@ -209,8 +209,17 @@ def test_current_route_rejects_missing_and_cross_profile(tmp_path, monkeypatch):
     mod = importlib.util.module_from_spec(modspec)
     modspec.loader.exec_module(mod)
     app = FastAPI()
+    app.state.auth_required = True
+    @app.middleware('http')
+    async def simulated_gateway_owner(request, call_next):
+        if request.headers.get('x-test-owner') == 'verified':
+            request.state.session = object()
+        return await call_next(request)
     app.include_router(mod.router)
-    client = TestClient(app)
+    unauthenticated = TestClient(app)
+    assert unauthenticated.get('/current?session_id=good').status_code == 401
+    assert unauthenticated.get('/last?session_id=good').status_code == 401
+    client = TestClient(app, headers={'x-test-owner': 'verified'})
     assert client.get('/current').status_code == 422
     assert client.get('/last').status_code == 422
     assert client.get('/current?session_id=other').status_code == 404

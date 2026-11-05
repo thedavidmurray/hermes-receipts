@@ -91,13 +91,21 @@ def test_dashboard_api_serves_authenticated_router_payload(historical_db, monkey
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     app = FastAPI()
+    app.state.auth_required = True
+    @app.middleware('http')
+    async def simulated_gateway_owner(request, call_next):
+        if request.headers.get('x-test-owner') == 'verified':
+            request.state.session = object()
+        return await call_next(request)
     app.include_router(module.router)
-    payload = TestClient(app).get('/last?session_id=s1')
+    client = TestClient(app)
+    assert client.get('/last?session_id=s1').status_code == 401
+    payload = client.get('/last?session_id=s1', headers={'x-test-owner': 'verified'})
     assert payload.status_code == 200
     data = payload.json()
     assert data['png'].startswith('data:image/png;base64,')
     assert data['final_id'] == 8 and 'VERIFIED    1 / 1' in data['text']
-    assert TestClient(app).get('/last?session_id=missing').status_code == 404
+    assert client.get('/last?session_id=missing', headers={'x-test-owner': 'verified'}).status_code == 404
 
 
 def test_claims_require_matching_target_and_success():
