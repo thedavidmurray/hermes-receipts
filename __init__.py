@@ -75,9 +75,14 @@ def _cli_setup(parser):
                       help='Opt-in ESC/POS printer, e.g. --print-usb 0x04b8 0x0202')
     verify = sub.add_parser('verify', help='Recompute a full ledger hash from state.db')
     verify.add_argument('hash', help='Full 64-character sha256 ledger hash')
+    from .v2.cli import setup
+    setup(sub)
 
 
 def _cli_handler(args):
+    if args.receipt_action in ('task', 'fleet', 'report'):
+        from .v2.cli import handle
+        return handle(args)
     try:
         if args.receipt_action == 'last':
             receipt = _receipt(session_id=getattr(args, 'session', None))
@@ -119,22 +124,9 @@ def _stamp(response_text='', session_id='', **kwargs):
         return None
 
 
-def _gate(tool_name='', args=None, session_id='', **kwargs):
-    """Default observer: even opt-in mode never approves, only blocks explicitly configured gaps."""
-    if tool_name != 'kanban_complete' or os.environ.get('HERMES_RECEIPTS_GATE') != 'block':
-        return None
-    try:
-        receipt = _receipt(session_id=session_id)
-        if any(c['verdict'] == '✗' for c in receipt['claims']):
-            return {'action': 'block', 'reason': 'Receipt: last persisted answer has unbacked action claims; review before completion.'}
-    except (OSError, ValueError):
-        pass
-    return None
-
-
 def register(ctx):
     ctx.register_hook('post_tool_call', _post_tool_call)
     ctx.register_hook('transform_llm_output', _stamp)
-    ctx.register_hook('pre_tool_call', _gate)
+    # v2 never intercepts completion: the legacy opt-in gate remains unregistered.
     ctx.register_command('receipt', _slash, description='Print an evidence receipt for an agent turn', args_hint='[final message id]')
     ctx.register_cli_command('receipt', 'Show and verify Hermes turn receipts', _cli_setup, _cli_handler)

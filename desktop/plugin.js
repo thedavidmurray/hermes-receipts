@@ -1,19 +1,37 @@
 import { host, useValue } from '@hermes/plugin-sdk'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 function ReceiptPane({ ctx }) {
   const sessionId = useValue(host.state.activeSessionId)
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const current = useRef(sessionId)
+  const generation = useRef(0)
+  // Invalidate a pending fetch during render, before an async result can commit.
+  if (current.current !== sessionId) {
+    current.current = sessionId
+    generation.current += 1
+  }
+  useEffect(() => { setData(null); setError('') }, [sessionId])
   const refresh = useCallback(async () => {
+    const requested = sessionId
+    const ticket = ++generation.current
+    setData(null)
+    if (!requested) {
+      setError('Select an active session first.')
+      return
+    }
     try {
-      const result = await ctx.rest('/last' + (sessionId ? '?session_id=' + encodeURIComponent(sessionId) : ''))
-      setData(result)
+      const result = await ctx.rest('/current?session_id=' + encodeURIComponent(requested))
+      if (ticket !== generation.current || current.current !== requested) return
+      if (typeof result.png !== 'string' || !result.png.startsWith('data:image/png;base64,')) throw new Error('Invalid receipt')
+      setData({ ...result, sessionId: requested })
       setError('')
     } catch (err) {
+      if (ticket !== generation.current || current.current !== requested) return
       setData(null)
-      setError(String(err))
+      setError('Receipt unavailable for this session.')
     }
   }, [ctx, sessionId])
   return jsxs('div', {
@@ -21,18 +39,16 @@ function ReceiptPane({ ctx }) {
     children: [
       jsx('button', {
         type: 'button',
-        className: 'rounded border px-3 py-2',
+        disabled: !sessionId,
+        className: 'rounded border px-3 py-2 disabled:opacity-50',
         onClick: refresh,
-        children: '🧾 Get receipt for current session'
+        children: '🧾 Get the receipt'
       }),
       error ? jsx('p', { role: 'alert', children: error }) : null,
-      data ? jsxs('div', { children: [
-        jsx('img', { src: data.png, alt: 'Hermes thermal receipt showing observed tools and verified claims', style: { maxWidth: '100%' } }),
-        jsxs('details', { children: [
-          jsx('summary', { children: 'Text receipt and full verification hash' }),
-          jsx('pre', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }, children: data.text })
-        ] })
-      ] }) : jsx('p', { children: 'Press the button to show a receipt. Past turns are available immediately.' })
+      data && data.sessionId === sessionId ? jsxs('div', { children: [
+        jsx('p', { children: data.warning }),
+        jsx('img', { src: data.png, alt: 'Public scoped receipt; no explicit task manifest means completion unverified', style: { maxWidth: '100%' } })
+      ] }) : jsx('p', { children: 'Select a session and press the button. A task needs an explicit manifest to verify completion.' })
     ]
   })
 }

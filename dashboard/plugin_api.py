@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import base64
 import importlib.util
+import io
 import sys
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
+import sqlite3
 from hermes_constants import get_hermes_home
 from plugins.plugin_storage import plugin_data_dir
 
@@ -22,8 +24,53 @@ receipt_from_state, render_png, render_text = _LIB.receipt_from_state, _LIB.rend
 router = APIRouter()
 
 
+def _session_profile_guard(session_id: str) -> None:
+    """Do not serve another persisted profile through the current-profile route."""
+    if not session_id or len(session_id) > 256:
+        raise HTTPException(status_code=400, detail='Active session required')
+    source = get_hermes_home() / 'state.db'
+    try:
+        with sqlite3.connect(source.resolve(strict=True).as_uri() + '?mode=ro', uri=True) as conn:
+            conn.execute('PRAGMA query_only=ON')
+            cols = {row[1] for row in conn.execute('PRAGMA table_info(sessions)')}
+            if 'profile_name' not in cols:
+                return  # legacy single-profile DB: session selection below still exact
+            row = conn.execute('SELECT profile_name FROM sessions WHERE id=?', (session_id,)).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail='Session unavailable')
+            current = get_hermes_home().name if get_hermes_home().parent.name == 'profiles' else 'default'
+            if row[0] != current:
+                raise HTTPException(status_code=404, detail='Session unavailable')
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=404, detail='Session unavailable') from exc
+
+
+@router.get('/current')
+def current(session_id: str = Query(..., min_length=1, max_length=256)):
+    """Active-pane-only public preview; absent manifest can NEVER certify done."""
+    _session_profile_guard(session_id)
+    try:
+        receipt_from_state(get_hermes_home() / 'state.db', session_id=session_id,
+                           ledger_path=plugin_data_dir('receipts') / 'data.db')
+        from datetime import datetime, timezone
+        from receipts_dashboard_lib.v2.public import to_public_receipt
+        from receipts_dashboard_lib.v2.render import render_task_png
+        start = datetime.now(timezone.utc).timestamp() - 86400
+        end = datetime.now(timezone.utc).timestamp()
+        private = {'requirements': [], 'criterion_findings': {}, 'completion': {'verdict': 'unverified'},
+                   'observation_start': start, 'observation_end': end}
+        public = to_public_receipt(private, {})
+        png = io.BytesIO()
+        render_task_png(public, png)
+        return {'completion': public['completion'], 'warning': 'No explicit task manifest; completion unverified.',
+                'png': 'data:image/png;base64,' + base64.b64encode(png.getvalue()).decode()}
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail='Session unavailable') from exc
+
+
 @router.get('/last')
-def last(session_id: str | None = Query(default=None, max_length=256)):
+def last(session_id: str = Query(..., min_length=1, max_length=256)):
+    _session_profile_guard(session_id)
     try:
         receipt = receipt_from_state(get_hermes_home() / 'state.db', session_id=session_id,
                                      ledger_path=plugin_data_dir('receipts') / 'data.db')
