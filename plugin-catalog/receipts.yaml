@@ -1,0 +1,23 @@
+name: receipts
+repo: https://github.com/thedavidmurray/hermes-receipts
+sha: 4f2702678e30d4a0db7ffc681df419bad81975dc
+title: Receipts
+description: "Thermal-paper evidence receipts for Hermes turns. Read-only historical state.db backfill plus a profile-local tool metadata ledger; claim matcher and optional Desktop pane. Disclosure: reads the selected profile's state.db conversations/tool arguments read-only; stores tool names, args hashes, coarse results and generated images under plugin-data/receipts. No network/model calls, telemetry, credentials or background work. Optional USB printer requires explicit device IDs and separately installed python-escpos; opt-in response stamp and completion-block gate are off by default. Detection benchmark: 200 hand-labelled historical answers, 83.87% precision / 55.32% recall at binary claim detection (not evidence-verdict accuracy)."
+maintainer: thedavidmurray
+tier: community
+category: desktop
+requires_hermes: ">=0.21.7"
+docs_url: https://github.com/thedavidmurray/hermes-receipts
+version: "0.1.0"
+screenshots:
+  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/4f2702678e30d4a0db7ffc681df419bad81975dc/assets/real-receipt.png
+readme: true
+platforms: []
+capabilities:
+  provides_tools: []
+  provides_hooks:
+    - post_tool_call
+    - transform_llm_output
+    - pre_tool_call
+  provides_middleware: []
+  requires_env: []
