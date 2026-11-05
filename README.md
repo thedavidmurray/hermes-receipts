@@ -1,6 +1,10 @@
 # Receipts for Hermes 🧾
 
-Turn-by-turn thermal-paper receipts for what Hermes *observed*, not what the agent merely said. Ledger hooks see each tool call; historical receipts read existing `state.db` immediately on install. No LLM calls.
+**Your agent says it's done. Get the receipt.**
+
+Receipts checks what an agent claims against observed evidence—not a session-metadata summary. The completed task is the hero: did the declared required outcomes actually happen? Individual reply claims are the evidence units; the v2 plan rolls them up to projects and per-agent/per-model evidence-backed rates, with cost and tokens only a footer.
+
+**Available today (v1):** turn-by-turn thermal-paper receipts for what Hermes *observed*. Ledger hooks see each tool call; historical receipts read this profile's existing `state.db` immediately on install. No LLM calls. **Planned, not shipped:** scoped task-completion verification, fleet rollups and independently measured verdict accuracy; see [PLAN-v2.md](PLAN-v2.md). Missing evidence is not proof of a lie, and a successful tool invocation alone is not proof that a task is complete.
 
 ![Real session receipt](assets/real-receipt.png)
 
