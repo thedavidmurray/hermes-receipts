@@ -62,6 +62,45 @@ def test_read_only_backfill_and_png(historical_db, tmp_path):
     assert receipt['tokens'] is None and receipt['cost_usd'] is None
 
 
+def test_live_hook_overlay_preserves_hash_and_duration(historical_db, monkeypatch):
+    monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q'},
+                           status='ok', session_id='s1', turn_id='5', tool_call_id='c2', duration_ms=348)
+    ledger_path = historical_db.parent / 'plugin-data' / 'receipts' / 'data.db'
+    receipt = plugin.receipt_from_state(historical_db, turn_id=8, ledger_path=ledger_path)
+    assert receipt['rows'][0]['duration_ms'] == 348
+    assert plugin.verify_hash(historical_db, receipt['hash'], ledger_path=ledger_path)['final_id'] == 8
+
+
+def test_dashboard_api_serves_authenticated_router_payload(historical_db, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    spec = importlib.util.spec_from_file_location('receipts_test_dashboard', ROOT / 'dashboard' / 'plugin_api.py')
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    app = FastAPI()
+    app.include_router(module.router)
+    payload = TestClient(app).get('/last?session_id=s1')
+    assert payload.status_code == 200
+    data = payload.json()
+    assert data['png'].startswith('data:image/png;base64,')
+    assert data['final_id'] == 8 and 'VERIFIED    1 / 1' in data['text']
+    assert TestClient(app).get('/last?session_id=missing').status_code == 404
+
+
+def test_claims_require_matching_target_and_success():
+    from receipts_test_package.receipt_core import match_claims
+    rows = [{'tool': 'write_file', 'label': 'other.py', 'action': 'write', 'status': 'ok', 'call_id': 'a'},
+            {'tool': 'terminal', 'label': 'test command', 'action': 'test', 'status': 'error', 'call_id': 'b'}]
+    claims = match_claims('Wrote example.py. 4 tests pass. Ran pytest.', rows)
+    assert [c['verdict'] for c in claims] == ['✗', '✗', '✗']
+    rows[0]['label'] = 'example.py'
+    rows[1]['status'] = 'ok'
+    assert [c['verdict'] for c in match_claims('Wrote example.py. 4 tests pass. Ran pytest.', rows)] == ['✓', '✓', '✓']
+
+
 def test_claim_extraction_is_conservative():
     from receipts_test_package.receipt_core import extract_claims, match_claims
     assert extract_claims('I did not push to main. Please run pytest. `tests pass`') == []

@@ -43,6 +43,8 @@ HERMES_HOME=/path/to/disposable-home hermes plugins validate . --install-deps
 HERMES_HOME=/path/to/disposable-home hermes plugins doctor . --ci
 ```
 
-A hand-reviewed ≥200-answer precision/recall score has **not yet been established**; do not cite a number until the annotation file is independently checked. The matcher is report-only by default for that reason.
+### Detection benchmark (not verdict accuracy)
+
+`python3 eval/score.py --profiles /path/to/profiles` recomputes the test from `eval/labels.json` and local `hive`/`kilo` state.db files. We sampled 200 historical assistant finals from the two profiles: id divisible by 13, recent 3,000 qualifying finals per profile, then seeded stratification into 100 keyword-bearing and 100 other answers. A reviewer read the answer excerpts (first 230–350 characters, checking later keyword contexts) and labelled whether each asserted **an affirmative, past, local action** in the seven supported classes. The public JSON contains only message IDs, profile names and labels, not private answer text. Results on this deliberately enriched sample: **TP=52 FP=10 FN=42 TN=96, precision=83.87%, recall=55.32%** at answer-level claim *detection*. This is not a claim that 83.87% of individual tool-evidence verdicts are correct; those were not independently labelled. Many paraphrases are missed. Keep the gate off unless you can tolerate false negatives and false positives.
 
 **Catalog:** draft `plugin-catalog/receipts.yaml` in this repo. Upstream PR and demo post are reserved for David; hackathon cutoff **Nov 11, 1PM PT** per the Typeform confirmation (earlier than the tweet wording).

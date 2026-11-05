@@ -28,10 +28,10 @@ function ReceiptPane({ ctx }) {
       error ? jsx('p', { role: 'alert', children: error }) : null,
       data ? jsxs('div', { children: [
         jsx('img', { src: data.png, alt: 'Hermes thermal receipt showing observed tools and verified claims', style: { maxWidth: '100%' } }),
-        jsx('details', { children: jsxs('div', { children: [
+        jsxs('details', { children: [
           jsx('summary', { children: 'Text receipt and full verification hash' }),
           jsx('pre', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }, children: data.text })
-        ] }) })
+        ] })
       ] }) : jsx('p', { children: 'Press the button to show a receipt. Past turns are available immediately.' })
     ]
   })

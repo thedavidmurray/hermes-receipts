@@ -40,7 +40,8 @@ def render_text(receipt: dict) -> str:
               f"SESSION TOKENS  {receipt.get('session_tokens') if receipt.get('session_tokens') is not None else 'unavailable'}",
               f"SESSION COST    {'$' + format(receipt['session_cost_usd'], '.4f') if receipt.get('session_cost_usd') is not None else 'unavailable'}",
               f"WALL TIME   {receipt['wall_seconds']}s", f"VERIFIED    {verified} / {len(claims)}",
-              '-' * 38, f"ledger sha256 {receipt['hash']}", f"hermes receipt verify {receipt['hash']}",
+              '-' * 38, 'ledger sha256 (join both lines)', receipt['hash'][:32], receipt['hash'][32:],
+              f"hermes receipt verify {receipt['hash']}",
               '', 'THANK YOU FOR YOUR HONEST AGENT']
     return '\n'.join(lines)
 
@@ -68,10 +69,8 @@ def render_png(receipt: dict, path: Path) -> Path:
             draw.text((59, y), line[:57], font=normal, fill=GREEN if line.startswith('✓') else RED)
         elif line.startswith('not observed '):
             draw.text((59, y), line[:57], font=normal, fill=MUTED)
-        elif line.startswith('ledger sha256'):
-            draw.text((59, y), line[:14] + receipt['hash'][:16] + '…' + receipt['hash'][-8:], font=normal, fill=INK)
         elif line.startswith('hermes receipt verify'):
-            draw.text((59, y), 'hermes receipt verify <full hash>', font=normal, fill=MUTED)
+            draw.text((59, y), 'hermes receipt verify <joined hash>', font=normal, fill=MUTED)
         elif line.startswith('THANK YOU'):
             draw.text((WIDTH // 2 + 36, y), line, font=bold, fill=INK, anchor='mt')
         else:

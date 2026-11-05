@@ -26,10 +26,10 @@ def _result_status(text: str | None) -> tuple[str, int | None]:
         code = data["result"].get("exit_code")
     if code is not None:
         return ("ok" if code == 0 else "error"), code
-    if isinstance(data, dict) and (data.get("error") or data.get("success") is False or data.get("status") == "error"):
+    if isinstance(data, dict) and (data.get("error") or data.get("success") is False or data.get("ok") is False or data.get("status") == "error"):
         return "error", None
     # No explicit success bit: do not promote unknown to verified.
-    if isinstance(data, dict) and (data.get("success") is True or data.get("verified") is True):
+    if isinstance(data, dict) and (data.get("success") is True or data.get("ok") is True or data.get("verified") is True):
         return "ok", None
     return "unknown", None
 

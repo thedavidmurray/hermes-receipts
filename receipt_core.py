@@ -7,13 +7,13 @@ import re
 from pathlib import Path
 
 PATTERNS = (
-    ("tests", r"\b(?:all\s+)?tests?\s+(?:pass(?:ed|ing)?|green|succeed(?:ed)?)\b|\bpytest\s+(?:pass(?:ed)?|green)\b"),
+    ("tests", r"\b(?:all\s+|\d+(?:/\d+)?\s+)?tests?(?:\s+\+\s+[\w\s]+)?\s+(?:pass(?:ed|ing)?|green|succeed(?:ed)?)\b|\bpytest\s+(?:pass(?:ed)?|green)\b"),
     ("commit", r"\b(?:committed|commit(?:ted)?\s+(?:the|my|our|changes|to)|created\s+(?:a\s+)?commit)\b"),
     ("push", r"\b(?:pushed|push(?:ed)?\s+to)\b"),
     ("send", r"\b(?:sent|emailed|posted|published)\b"),
     ("deploy", r"\b(?:deployed|shipped\s+to\s+(?:production|prod))\b"),
-    ("write", r"\b(?:created|wrote|saved|patched|edited)\s+(?:a\s+|the\s+)?(?:file|[\w./-]+\.(?:py|js|ts|md|json|yaml|png))\b"),
-    ("run", r"\b(?:ran|executed)\s+(?:the\s+)?(?:[\w./-]+\s+)?(?:command|script|pytest|tests?|build)\b"),
+    ("write", r"\b(?:created|wrote|saved|patched|edited|added|updated|generated|drafted|fixed)\s+(?:(?:a|the|an|two|three)\s+)?(?:file|task|card|note|report|draft|script|page|module|scaffold|[\w./-]+\.(?:py|js|ts|md|json|yaml|png))\b|\b(?:file|note|report|draft|[\w./-]+\.(?:py|js|ts|md|json|yaml|png))\s+(?:written|created|generated|rewritten)\b"),
+    ("run", r"\b(?:ran|executed)\s+(?:the\s+|daily\s+)?(?:[\w./-]+\s+)?(?:command|script|pytest|tests?|build|enrichment|reporter)\b"),
 )
 # An explicit action for another executor is not a failed claim about this turn's tools.
 EXTERNAL = re.compile(r"\b(?:subagent|other agent|another process|external job|CI|GitHub Actions)\b", re.I)
@@ -24,7 +24,8 @@ _ACTIONS = {"tests": "test", "commit": "commit", "push": "push", "send": "send",
 
 def extract_claims(answer: str) -> list[dict]:
     """Extract affirmative action assertions; avoid code blocks and quoted instructions."""
-    answer = re.sub(r"```.*?```|`[^`\n]+`", " ", answer or "", flags=re.S)
+    answer = re.sub(r"```.*?```", " ", answer or "", flags=re.S)
+    answer = re.sub(r"`([^`\n]+)`", lambda m: m[1] if re.search(r"\.(?:py|js|ts|md|json|yaml|png)\b", m[1]) else " ", answer)
     claims = []
     for line in answer.splitlines():
         line = line.strip().lstrip("-*• 🔥").strip()
@@ -60,9 +61,9 @@ def classify(tool: str, args: object) -> tuple[str, str]:
             if re.search(pattern, lower):
                 return action, action + " command"
         return "run", "command"
-    if tool in ("write_file", "patch", "mcp__magicpath__submit_component_code"):
+    if tool in ("write_file", "patch", "kanban_create", "kanban_comment", "mcp__magicpath__submit_component_code"):
         value = args.get("path", "")
-        return "write", Path(str(value)).name[:60] if value else "file"
+        return "write", Path(str(value)).name[:60] if value else ("task" if tool.startswith("kanban_") else "file")
     if any(w in tool.lower() for w in ("send", "publish", "post_message")):
         return "send", "outbound tool"
     return "other", tool[:40]
@@ -78,7 +79,20 @@ def match_claims(answer: str, rows: list[dict]) -> list[dict]:
         if claim["external"]:
             claim.update(verdict="not observed", evidence="outside this agent's tool stream")
             continue
-        eligible = [r for r in rows if r.get("action") == _ACTIONS[claim["kind"]]]
+        action = _ACTIONS[claim['kind']]
+        if claim['kind'] == 'run' and re.search(r'\b(?:pytest|tests?)\b', claim['text'], re.I):
+            action = 'test'
+        eligible = [r for r in rows if r.get('action') == action]
+        if claim['kind'] == 'write':
+            # Do not let writing an unrelated file (or creating a card) validate this claim.
+            target = re.search(r"[\w./-]+\.(?:py|js|ts|md|json|yaml|png)\b", claim['text'], re.I)
+            if target:
+                basename = Path(target.group()).name.lower()
+                eligible = [r for r in eligible if str(r.get('label', '')).lower() == basename]
+            elif re.search(r"\b(?:task|card)\b", claim['text'], re.I):
+                eligible = [r for r in eligible if r.get('tool') == 'kanban_create']
+            elif re.search(r"\bfile\b", claim['text'], re.I):
+                eligible = [r for r in eligible if r.get('tool') in ('write_file', 'patch')]
         # A tool invocation is proof of an invocation, not proof of the claimed outcome.
         good = [r for r in eligible if _success(r)]
         if good:
