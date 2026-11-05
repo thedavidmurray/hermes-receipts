@@ -1,0 +1,10 @@
+name: receipts
+version: 0.1.0
+description: "Store-style receipts for Hermes turns: observed tools and conservative claims, with read-only historical backfill."
+requires_hermes: ">=0.21.7"
+provides_hooks:
+  - post_tool_call
+  - transform_llm_output
+  - pre_tool_call
+python_dependencies:
+  - "Pillow>=10.0,<13"
