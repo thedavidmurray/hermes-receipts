@@ -62,6 +62,16 @@ def test_read_only_backfill_and_png(historical_db, tmp_path):
     assert receipt['tokens'] is None and receipt['cost_usd'] is None
 
 
+def test_gateway_slash_media_is_deliverable(historical_db, monkeypatch):
+    from gateway.platforms.base import BasePlatformAdapter
+    monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    reply = plugin._slash('8')
+    media, cleaned = BasePlatformAdapter.extract_media(reply)
+    assert len(media) == 1 and Path(media[0][0]).is_file()
+    assert media[0][0].endswith('.png') and 'VERIFIED    1 / 1' in cleaned
+    assert 'MEDIA:' not in cleaned
+
+
 def test_live_hook_overlay_preserves_hash_and_duration(historical_db, monkeypatch):
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
     plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q'},
