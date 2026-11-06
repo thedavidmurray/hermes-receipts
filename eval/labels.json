@@ -1,5 +1,5 @@
 {
-  "method": "Human review of answer excerpts (first 230\u2013350 characters, with additional keyword-context checks on tails); binary explicit affirmative past action claim in tests/commit/push/send/deploy/write/run. Stratified 100 marker-bearing + 100 other among id%13=0, recent 3000 final assistant messages of hive+kilo, fixed seed 9112026. No raw answer text included. Labels for this finite sample were adjudicated before regex changes; verdict matching not assessed.",
+  "method": "Kilo (implementing agent) labelled historical assistant-answer excerpts (first 230–350 characters, plus keyword-context checks on tails), binary explicit affirmative past action claim in tests/commit/push/send/deploy/write/run. Critic independently spot-checked 30 answers with about 28/30 agreement; no human labelled these answers. Stratified 100 marker-bearing + 100 other among id%13=0, recent 3000 final assistant messages of hive+kilo, fixed seed 9112026. No raw answer text included. Labels for this finite sample were set before regex changes; verdict matching not assessed.",
   "items": [
     [
       "hive",

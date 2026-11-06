@@ -130,7 +130,7 @@ def test_cli_task_actual_probe_and_no_manifest_forgery(tmp_path, capsys):
     assert 'COMPLETION: SUPPORTED' not in capsys.readouterr().out
 
 
-def test_no_completion_intercept_is_registered():
+def test_completion_intercept_is_registered_but_opt_in():
     class Context:
         hooks = []
         def register_hook(self, name, callback): self.hooks.append(name)
@@ -138,7 +138,7 @@ def test_no_completion_intercept_is_registered():
         def register_cli_command(self, *args, **kwargs): pass
     ctx = Context()
     plugin.register(ctx)
-    assert ctx.hooks == ['post_tool_call', 'transform_llm_output']
+    assert ctx.hooks == ['post_tool_call', 'transform_llm_output', 'pre_tool_call']
 
 
 def test_v2_usb_uses_exact_public_text_and_reports_fallback(tmp_path, monkeypatch, capsys):
@@ -213,7 +213,7 @@ def test_current_route_rejects_missing_and_cross_profile(tmp_path, monkeypatch):
     @app.middleware('http')
     async def simulated_gateway_owner(request, call_next):
         if request.headers.get('x-test-owner') == 'verified':
-            request.state.session = object()
+            request.state.hosted_http_authenticated = True
         return await call_next(request)
     app.include_router(mod.router)
     unauthenticated = TestClient(app)

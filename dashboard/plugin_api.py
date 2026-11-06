@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import sqlite3
 from hermes_constants import get_hermes_home
 from plugins.plugin_storage import plugin_data_dir
-from hermes_cli.web_deps import late
 
 # Dashboard API files are loaded as standalone modules, not package children.
 _ROOT = Path(__file__).resolve().parent.parent
@@ -26,9 +25,10 @@ router = APIRouter()
 
 
 def _authorize(request: Request):
-    # A hosted plugin receives the gateway's per-request admission over private IPC.
-    # Keep a route-local guard too; a bare plugin-host request cannot bypass it.
-    late('_require_token')(request)
+    # Host-isolated routes receive a per-request boolean after gateway auth.
+    # Fail closed if mounted in-process or accessed outside the admitted IPC path.
+    if request.scope.get('state', {}).get('hosted_http_authenticated') is not True:
+        raise HTTPException(status_code=401, detail='Authenticated gateway request required')
 
 
 def _session_profile_guard(session_id: str) -> None:

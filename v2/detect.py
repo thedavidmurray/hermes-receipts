@@ -28,7 +28,8 @@ _RULES = tuple((kind, re.compile(pattern, re.I)) for kind, pattern in _PATTERNS)
 _FENCED = re.compile(r'```.*?(?:```|\Z)|~~~.*?(?:~~~|\Z)', re.S)
 _INLINE = re.compile(r'`[^`\n]*`|"[^"\n]*"|“[^”\n]*”|(?<!\w)\x27[^\x27\n]*\x27(?!\w)')
 _BREAK = re.compile(r'[.!?;](?=\s|$)|\n+|\s+[—–]\s+|,\s*(?=(?:but|however|then|yet)\b)|\s+(?:but|however|then|yet|and\s+I)\s+', re.I)
-_NEGATION = re.compile(r'\b(?:not|never|no|didn[\x27’]?t|haven[\x27’]?t|hasn[\x27’]?t|wasn[\x27’]?t|weren[\x27’]?t|couldn[\x27’]?t|failed\s+to|without)\b', re.I)
+_NEGATION = re.compile(r'\b(?:not|never|nothing|neither|none|zero|0\s+(?:new|other|additional)?|no|didn[\x27’]?t|haven[\x27’]?t|hasn[\x27’]?t|wasn[\x27’]?t|weren[\x27’]?t|couldn[\x27’]?t|failed\s+to|without)\b', re.I)
+_OTHER_ACTOR = re.compile(r'\b(?:you|your)\b', re.I)
 _FUTURE = re.compile(r'\b(?:will|would|should|must|might|may|going\s+to|plan(?:ning)?\s+to|intend\s+to|need\s+to|about\s+to|still\s+need\s+to)\b', re.I)
 _SKIP_LINE = re.compile(r'^\s*(?:>|#{1,6}\s|https?://|(?:plan|todo|next|upcoming|future|example|hypothetical|instructions?)\s*:)', re.I)
 _EXTERNAL = re.compile(r'\b(?:subagent|other\s+agent|another\s+agent|someone\s+else|external\s+job|CI|GitHub\s+Actions|according\s+to|report(?:s|ed)?\s+that)\b', re.I)
@@ -88,7 +89,7 @@ def extract_claims(answer: str, scope: Scope, links: Mapping[str, str | None] | 
                     prefix = clause[:hit.start()]
                     # Negation/future modality is local to this clause. 'Tests failed,
                     # then tests passed' is handled by the clause boundary.
-                    if _NEGATION.search(prefix) or _FUTURE.search(prefix):
+                    if _NEGATION.search(prefix) or _OTHER_ACTOR.search(prefix) or _FUTURE.search(prefix):
                         continue
                     if kind == 'done' and (_INCOMPLETE.search(clause) or re.search(r'\bdone\s+(?:planning|researching|drafting)\b', clause, re.I)):
                         continue

@@ -69,6 +69,25 @@ def test_external_report_does_not_suppress_local_followup():
     assert [c['kind'] for c in detect('CI tests passed, but I pushed the branch.')] == ['push']
 
 
+@pytest.mark.parametrize('answer', [
+    'Nothing was deployed or reloaded.',
+    'No message or alert was sent, and the queue remains untouched.',
+    'Nothing was published.',
+    'Nothing was pushed to main.',
+    'The post you sent after it went live was useful.',
+    'None of the files were written.',
+    'Zero messages were sent.',
+    '0 new souls were pushed to R2.',
+    'Neither service has ever been deployed.',
+])
+def test_disclaimers_and_user_actions_are_not_agent_claims(answer):
+    assert detect(answer) == []
+
+
+def test_disclaimer_does_not_hide_later_local_action():
+    assert [c['kind'] for c in detect('Nothing was deployed, but I committed changes.')] == ['commit']
+
+
 def test_run_requires_named_operation_not_idiom():
     assert detect('We ran out of time. The process ran at noon.') == []
     assert [c['kind'] for c in detect('Ran the build.')] == ['run']

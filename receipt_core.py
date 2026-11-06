@@ -17,7 +17,8 @@ PATTERNS = (
 )
 # An explicit action for another executor is not a failed claim about this turn's tools.
 EXTERNAL = re.compile(r"\b(?:subagent|other agent|another process|external job|CI|GitHub Actions)\b", re.I)
-NEGATED = re.compile(r"\b(?:not|never|didn.t|haven.t|couldn.t|failed to|no)\b", re.I)
+NEGATED = re.compile(r"\b(?:not|never|nothing|neither|none|zero|0\s+(?:new|other|additional)?|didn.t|haven.t|hasn.t|wasn.t|weren.t|couldn.t|failed to|without|no)\b", re.I)
+OTHER_ACTOR = re.compile(r"\b(?:you|your)\b", re.I)
 SECRET = re.compile(r"(?i)(?:token|password|secret|api[_-]?key|authorization|bearer)\s*[=:]?")
 _ACTIONS = {"tests": "test", "commit": "commit", "push": "push", "send": "send", "deploy": "deploy", "write": "write", "run": "run"}
 
@@ -31,13 +32,14 @@ def extract_claims(answer: str) -> list[dict]:
         line = line.strip().lstrip("-*• 🔥").strip()
         if not line or line.startswith((">", "#", "http")):
             continue
-        for segment in re.split(r"(?<=[.!?;])\s+|\s+[—–]\s+", line):
+        for segment in re.split(r"(?<=[.!?;])\s+|\s+[—–]\s+|\s+(?:but|then|and\s+I)\s+", line, flags=re.I):
             for kind, pattern in PATTERNS:
                 match = re.search(pattern, segment, re.I)
                 if not match:
                     continue
-                prefix = segment[max(0, match.start() - 16):match.start()]
-                if NEGATED.search(prefix) or re.match(r"(?i)^(?:if|when|please|should|must|to|will|can|would)\b", segment):
+                prefix = segment[:match.start()]
+                if (NEGATED.search(prefix) or OTHER_ACTOR.search(prefix)
+                        or re.match(r"(?i)^(?:if|when|please|should|must|to|will|can|would)\b", segment)):
                     continue
                 claims.append({"kind": kind, "text": segment[:100], "external": bool(EXTERNAL.search(segment))})
     return claims

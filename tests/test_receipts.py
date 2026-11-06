@@ -95,7 +95,7 @@ def test_dashboard_api_serves_authenticated_router_payload(historical_db, monkey
     @app.middleware('http')
     async def simulated_gateway_owner(request, call_next):
         if request.headers.get('x-test-owner') == 'verified':
-            request.state.session = object()
+            request.state.hosted_http_authenticated = True
         return await call_next(request)
     app.include_router(module.router)
     client = TestClient(app)
@@ -125,6 +125,43 @@ def test_claim_extraction_is_conservative():
     assert match_claims('The subagent pushed to main.', [])[0]['verdict'] == 'not observed'
     assert match_claims('Pushed to main.', [])[0]['verdict'] == '✗'
     assert match_claims('All tests pass.', [{'tool': 'terminal', 'action': 'test', 'status': 'error'}])[0]['verdict'] == '✗'
+
+
+@pytest.mark.parametrize('answer', [
+    'Nothing was deployed or reloaded.',
+    'No message or alert was sent, and the queue remains untouched.',
+    'Nothing was published.',
+    'Nothing was pushed to main.',
+    'The post you sent after it went live was useful.',
+    'None of the files were written.',
+    'Zero messages were sent.',
+    '0 new souls were pushed to R2.',
+    'Neither service has ever been deployed.',
+])
+def test_disclaimers_and_user_actions_are_not_agent_claims(answer):
+    from receipts_test_package.receipt_core import extract_claims, match_claims
+    assert extract_claims(answer) == []
+    assert match_claims(answer, []) == []
+
+
+def test_disclaimer_does_not_hide_later_local_action():
+    from receipts_test_package.receipt_core import extract_claims
+    assert [c['kind'] for c in extract_claims('Nothing was deployed, but I committed changes.')] == ['commit']
+
+
+def test_optional_gate_default_observe_and_scoped_block(historical_db, monkeypatch):
+    monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    monkeypatch.delenv('HERMES_RECEIPTS_GATE', raising=False)
+    assert plugin._gate(tool_name='kanban_complete', session_id='s1') is None
+    monkeypatch.setenv('HERMES_RECEIPTS_GATE', 'block')
+    assert plugin._gate(tool_name='kanban_complete', session_id='') is None
+    assert plugin._gate(tool_name='write_file', session_id='s1') is None
+    # The latest final answer is backed; old failing claims cannot block it.
+    assert plugin._gate(tool_name='kanban_complete', session_id='s1') is None
+    with sqlite3.connect(historical_db) as conn:
+        conn.execute('DELETE FROM messages WHERE id >= 5')
+    blocked = plugin._gate(tool_name='kanban_complete', session_id='s1')
+    assert blocked['action'] == 'block' and 'review' in blocked['reason']
 
 
 def test_hook_ledger_only_digests(monkeypatch, tmp_path):

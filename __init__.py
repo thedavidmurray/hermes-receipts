@@ -124,9 +124,28 @@ def _stamp(response_text='', session_id='', **kwargs):
         return None
 
 
+def _gate(tool_name='', args=None, session_id='', **kwargs):
+    """Opt-in advisory block for the last persisted answer in this exact session.
+
+    Observe-only by default. Never approves tools. Since this checks the prior
+    persisted turn, operators should review a block rather than treating it as
+    proof that the current completion is wrong.
+    """
+    if (tool_name != 'kanban_complete' or os.environ.get('HERMES_RECEIPTS_GATE') != 'block'
+            or not session_id):
+        return None
+    try:
+        receipt = _receipt(session_id=session_id)
+    except (OSError, ValueError):
+        return None
+    if any(claim['verdict'] == '✗' for claim in receipt['claims']):
+        return {'action': 'block', 'reason': 'Last persisted receipt has unbacked action claims; review before completion.'}
+    return None
+
+
 def register(ctx):
     ctx.register_hook('post_tool_call', _post_tool_call)
     ctx.register_hook('transform_llm_output', _stamp)
-    # v2 never intercepts completion: the legacy opt-in gate remains unregistered.
+    ctx.register_hook('pre_tool_call', _gate)
     ctx.register_command('receipt', _slash, description='Print an evidence receipt for an agent turn', args_hint='[final message id]')
     ctx.register_cli_command('receipt', 'Show and verify Hermes turn receipts', _cli_setup, _cli_handler)
