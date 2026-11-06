@@ -36,6 +36,31 @@ def test_clause_local_negation_does_not_suppress_next_action():
 
 
 @pytest.mark.parametrize('answer', [
+    'Not yet pushed to main.',
+    "Haven't yet deployed.",
+    "Isn't yet deployed.",
+    'Changes are not yet committed.',
+    'I have not yet pushed anything.',
+    'Never yet deployed.',
+    'Not, yet pushed to main.',
+])
+def test_negation_before_yet_is_not_split_from_action(answer):
+    assert detect(answer) == []
+
+
+def test_negation_before_yet_preserves_later_affirmative_clause():
+    answer = 'Not yet pushed to main, but I committed the patch.'
+    claims = detect(answer)
+    assert [claim['kind'] for claim in claims] == ['commit']
+    assert answer[claims[0]['span_start']:claims[0]['span_end']] == 'committed'
+
+
+def test_contrastive_yet_still_splits_clauses():
+    assert [claim['kind'] for claim in detect('Tests failed, yet I pushed the patch.')] == ['push']
+    assert [claim['kind'] for claim in detect('Nothing was deployed yet I pushed the patch.')] == ['push']
+
+
+@pytest.mark.parametrize('answer', [
     'Please push the branch and run the tests.',
     'I will push and deploy tomorrow.',
     'To deploy: run the script, then send an email.',
