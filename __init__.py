@@ -45,7 +45,8 @@ def _source_db():
 
 def _receipt(session_id=None, turn_id=None):
     return receipt_from_state(_source_db(), session_id=session_id or None, turn_id=turn_id,
-                              ledger_path=plugin_data_dir('receipts') / 'data.db')
+                              ledger_path=plugin_data_dir('receipts') / 'data.db',
+                              classify_jev=os.environ.get('HERMES_RECEIPTS_JEV') == '1')
 
 
 def _image(receipt):

@@ -55,6 +55,25 @@ The tool hook writes `tool name`, `args SHA-256`, a coarse action category, stat
 - **Approvals:** never approves tools. Optional `pre_tool_call` blocking is off by default and only reviews the prior persisted answer for unbacked claims in the same session; it is not a current-turn proof. The legacy stamp is also off by default.
 - **Desktop:** SDK current-session pane and authenticated profile-scoped backend route; no per-turn DOM button or fleet web API. A missing/mismatched session is rejected; the pane cannot claim supported completion without an explicit task manifest.
 
+## Optional Jev classification — off by default
+
+`HERMES_RECEIPTS_JEV=1` explicitly opts the receipt-generation process into an
+**external API** call with sampled assistant text, tool arguments (including
+completion-tool claims) and tool results. Secret assignments are masked and
+`jevkit.privacy.redact` runs **before sending**. Redaction is heuristic, not
+complete DLP; do not enable it for confidential sessions. Jev must be separately
+available/importable; no credentials, live profiles or core are changed by this
+plugin. Import/timeout/privacy/malformed-response failures fall back to
+deterministic categories. Without the flag no Jev import or network call occurs.
+
+This experimental classifier selects applicable receipt sections using the
+[data-driven auto kit](kits/auto.json). It **never overrides deterministic
+contradictions or other outcome verdicts**. Scores are uncalibrated, not
+probabilities; judgment categories remain experimental pending independent
+gold verification. `receipt_from_state` exposes `classification`/`auto_fields`
+for the downstream configurable kits renderer, not a replacement renderer.
+See [API, privacy, decision rules, fleet measurements and blind-verifier runner](docs/jev-fleet.md).
+
 ## Local verification
 
 ```bash

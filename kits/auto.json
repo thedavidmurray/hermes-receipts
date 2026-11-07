@@ -1,0 +1,20 @@
+{
+  "name": "auto",
+  "schema_version": 1,
+  "description": "Experimental measured session triage; never a verification verdict. Unknown or absent metadata prints n/a in the field renderer.",
+  "required_fields": ["verdict", "task_session_id", "claims_detected", "verdict_per_claim", "evidence_locators"],
+  "rules": [
+    {"when_any": {"tests_run": true}, "fields": ["tests"]},
+    {"when_any": {"pushed_or_published": true}, "fields": ["push_check"]},
+    {"when_any": {"files_changed": true}, "fields": ["files_touched"]},
+    {"when_any": {"external_side_effect": true}, "fields": ["external_readback"]},
+    {"when_any": {"unsurfaced_error": true}, "fields": ["errors"]},
+    {"when_any": {"cost_heavy": true}, "fields": ["tokens_in", "tokens_out", "tokens_total", "cost"]},
+    {"when_any": {"long_running": true}, "fields": ["duration"]},
+    {"when_any": {"session_type": "ops", "jev_session_type": "ops"}, "fields": ["tool_call_count", "top_tools", "duration"]},
+    {"when_any": {"session_type": "research", "jev_session_type": "research"}, "fields": ["sources"]},
+    {"when_any": {"session_type": "media", "jev_session_type": "media"}, "fields": ["artifacts"]}
+  ],
+  "thresholds": {"cost_heavy_usd": 1, "cost_heavy_tokens": 100000, "long_running_seconds": 600},
+  "measurement": {"status": "frozen fleet scan reconciled", "aggregate_report": "docs/jev-fleet-aggregate.json", "attempted": 15304, "ok": 15301, "failed": 3, "judgments": "experimental until independent frozen-gold verification", "factual_signals": "observed invocation heuristics, not outcome ground truth", "rationale": ["Only 6740/15301 model-positive tests_run sessions: do not attach tests universally.", "Only 598/15301 push/publish positives and 1830 external-write positives: gate remote readback sections independently.", "Cost-heavy positives 6342 versus long-running 1704, overlap 1565: cost and duration are independent branches, not one combined footer.", "Model types: ops 7141, chat 3702, coding 2268, research 2149, media 41: retain mandatory evidence for every type and add type-specific sections.", "Only 2367 of 3084 tests_passed positives also tests_run: never equate a model pass answer with actual passing evidence."]}
+}

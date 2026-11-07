@@ -5,7 +5,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .receipt_core import classify, digest, ledger_hash, match_claims
+try:
+    from .receipt_core import classify, digest, ledger_hash, match_claims
+except ImportError:  # Standalone read-only fleet tooling, without importing the plugin host.
+    from receipt_core import classify, digest, ledger_hash, match_claims
 
 
 def _json(text, fallback):
@@ -18,9 +21,8 @@ def _json(text, fallback):
 
 def _result_status(text: str | None) -> tuple[str, int | None]:
     data = _json(text, {})
-    if not data and isinstance(text, str) and text.startswith("{"):
-        outer = _json(text, {})
-        data = outer.get("data") if isinstance(outer.get("data"), dict) else outer
+    if isinstance(data, dict) and isinstance(data.get('data'), dict):
+        data = data['data']
     code = data.get("exit_code") if isinstance(data, dict) else None
     if code is None and isinstance(data, dict) and isinstance(data.get("result"), dict):
         code = data["result"].get("exit_code")
@@ -53,7 +55,7 @@ def _contents(text):
 
 
 def receipt_from_state(db_path: Path, session_id: str | None = None, turn_id: int | None = None,
-                       ledger_path: Path | None = None) -> dict:
+                       ledger_path: Path | None = None, classify_jev: bool = False) -> dict:
     """Find any final answer by id; past turns work immediately, without import or migration."""
     db_path = Path(db_path).expanduser().resolve(strict=True)
     # SQLite URI mode=ro guarantees this function does not create or mutate the source.
@@ -107,7 +109,13 @@ def receipt_from_state(db_path: Path, session_id: str | None = None, turn_id: in
         # Hermes stores usage at session scope, not per turn. Never present session totals as turn totals.
         usage = conn.execute("SELECT input_tokens,output_tokens,estimated_cost_usd FROM sessions WHERE id=?", (final['session_id'],)).fetchone()
         answer = _contents(final['content'])
-        return dict(session_id=final['session_id'], turn_id=user['id'], final_id=final['id'], answer=answer,
+        from .session_classifier import auto_fields, classify_session
+        classification_meta = dict(usage) if usage else {}
+        classification_meta['wall_seconds'] = final['timestamp'] - user['timestamp']
+        classification = classify_session([dict(m) for m in messages], classification_meta,
+                                          enabled=classify_jev)
+        return dict(classification=classification, auto_fields=auto_fields(classification['categories']),
+                    session_id=final['session_id'], turn_id=user['id'], final_id=final['id'], answer=answer,
                     rows=rows, claims=match_claims(answer, rows), hash=ledger_hash(rows),
                     tokens=None, cost_usd=None,
                     session_tokens=(usage['input_tokens'] or 0) + (usage['output_tokens'] or 0) if usage else None,

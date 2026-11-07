@@ -52,6 +52,19 @@ def test_retroactive_turn_boundaries_and_failures(historical_db):
         plugin.verify_hash(historical_db, old['hash'][:8])
 
 
+def test_long_initial_inference_counts_toward_auto_duration(historical_db):
+    with sqlite3.connect(historical_db) as conn:
+        conn.execute('DELETE FROM messages WHERE id NOT IN (5,6,8)')
+        conn.execute('UPDATE messages SET timestamp=0 WHERE id=5')
+        conn.execute("UPDATE messages SET timestamp=650, tool_calls=NULL, content='Thinking.' WHERE id=6")
+        conn.execute("UPDATE messages SET timestamp=700, content='Hello.' WHERE id=8")
+    receipt = plugin.receipt_from_state(historical_db, turn_id=8)
+    assert receipt['wall_seconds'] == 700
+    assert receipt['classification']['categories']['session_type'] == 'chat'
+    assert receipt['classification']['categories']['long_running'] is True
+    assert 'duration' in receipt['auto_fields']
+
+
 def test_read_only_backfill_and_png(historical_db, tmp_path):
     before = historical_db.stat().st_mtime_ns
     receipt = plugin.receipt_from_state(historical_db)
