@@ -29,7 +29,8 @@ def _task_lines(public: dict) -> list[str]:
         lines.append('  ' + _verdict(criterion.get('verdict')))
     lines += ['-' * 38, 'VERSION: ' + _version(public.get('artifact_version')),
               'WINDOW UTC: ' + _window(public.get('window')).split(' (UTC, end exclusive)')[0],
-              'End exclusive',
+              'Dates only; exact UTC bounds are private.',
+              'Actual observation window: [start, end).',
               *textwrap.wrap(_qualification(public.get('completion')), 44),
               'Experimental viewer; limited coverage.',
               'Tokens/cost: unavailable for this task']
@@ -75,7 +76,8 @@ def _report_lines(public: dict) -> list[str]:
     lines = ['HERMES / RECEIPTS', 'EVIDENCE-BACKED CLAIM STATEMENT',
              'NOT A LIE RATE',
              'WINDOW UTC: ' + _window(public.get('window')).split(' (UTC, end exclusive)')[0],
-             'End exclusive',
+             'Dates only; exact UTC bounds are private.',
+             'Actual observation window: [start, end).',
              f"COVERAGE: {int(public['complete_sources'])}/{int(public['source_count'])} complete",
              f"PARTIAL/UNAVAILABLE: {int(public['partial_sources'])}",
              'Missing evidence is unverified.', '-' * 38]
