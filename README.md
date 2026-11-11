@@ -29,7 +29,12 @@ Experimental, local-only v2 commands (not an accepted release):
 hermes receipt task --manifest /local/task.json --png /local/task.png
 hermes receipt fleet --roots /explicit/local/hermes-root --start 2026-11-01T00:00:00Z --end 2026-12-01T00:00:00Z --report-db /local/report.db
 hermes receipt report --report-db /local/report.db --group-by profile,model,source --png /local/statement.png
+hermes receipt options            # kits, themes and field ids as JSON
 ```
+
+`task` and `report` also take `--kit`, `--fields`, `--sections`, `--theme`,
+`--metrics FILE` and `--from-state STATE_DB [--session-id ID]`; see
+[Receipt fields, kits and themes](#receipt-fields-kits-and-themes).
 
 Task manifests must provide a linked `done` claim, explicit required criteria and `[start,end)` UNIX observation timestamps; the optional `probes` list explicitly names an `artifact_digest` file+SHA256 or `remote_commit` local bare remote+commit. It performs actual local readbacks; it **does not** trust supplied findings/evidence, execute manifest shell commands, or run network probes. Test-bound criteria require a trusted in-process runner and remain unverified via this CLI. Only explicit `reviewed_labels` from the built-in shareable alias vocabulary are rendered; everything else becomes `Criterion N`. Rates are supported/(supported+contradicted+unverified), with not_evaluable beside the denominator; n<10 shows counts only. Unknown model/source buckets and incomplete coverage remain visible. A digest is not a signature. Fleet reads are explicitly opt-in via local CLI, never through HTTP or chat.
 
@@ -73,6 +78,112 @@ probabilities; judgment categories remain experimental pending independent
 gold verification. `receipt_from_state` exposes `classification`/`auto_fields`
 for the downstream configurable kits renderer, not a replacement renderer.
 See [API, privacy, decision rules, fleet measurements and blind-verifier runner](docs/jev-fleet.md).
+
+## Receipt fields, kits and themes
+
+Three things a user can choose, and one thing they cannot. **Content** is a field
+registry, **kits** are named field sets, **themes** are the visual layer — and the
+verdict block prints for every kit, every field list and every theme.
+
+### Verdicts are coloured by their enum, never by their text
+
+| verdict | ink | glyph (unicode / ascii) | meaning |
+|---|---|---|---|
+| `supported` | green | `✓` / `[OK]` | the required readback was observed |
+| `contradicted` | red | `✗` / `[X]` | an observed outcome contradicts the claim |
+| `unverified` | amber | `?` / `[?]` | nothing applicable was observed; **not** a lie |
+| `not_evaluable` | grey | `–` / `[-]` | no denominator for this claim |
+
+Every verdict prints its glyph and its word, in every theme. `COMPLETION` is the
+**worst** of the completion verdict and every *required* criterion — so it is green
+only when all required criteria are supported, and no criterion can ever upgrade a
+completion claim. In a monochrome theme a contradicted verdict is drawn as inverse
+video (light text on an ink bar) so it cannot be mistaken for a supported one.
+Statement counts (declared claims, and each report group) are coloured per
+category, one line per verdict.
+
+### Fields
+
+Each field declares the source it reads; a field with no data prints `n/a` and
+never a guess (`v2/fields.py`, `FIELDS`). Selectable ids: `verdict`,
+`task_session_id`, `session`, `profile`, `agent`, `model`, `provider`, `turns`,
+`tool_call_count`, `top_tools`, `tokens_in`, `tokens_out`, `tokens_total`, `cost`,
+`cost_scope`, `duration`, `files_touched`, `claims_detected`, `verdict_per_claim`,
+`evidence_locators`, `artifact_version`, `detector_version`, `matcher_version`,
+`plugin_version`, `git_sha`, `receipt_hash`, `timestamp`.
+
+Telemetry is read **read-only** (`mode=ro`, `PRAGMA query_only=ON`) from a Hermes
+`state.db` by `v2/telemetry.py`: session tokens/cost (labelled `session totals (not
+per turn)`), tool-call count and top tools, wall clock, turns, files written. The
+receipt carries a `receipt_hash`: a SHA256 over its own content, re-checkable with
+`v2.public.verify_receipt_hash`.
+
+### Kits
+
+Built-in kits live in `v2/kits/*.json` and are selectable by name:
+
+| kit | prints |
+|---|---|
+| `minimal` | the verdict block plus the task/session id |
+| `verify` (default) | counts, per-claim evidence lines, id, claims, evidence locators, detector/matcher versions, receipt hash |
+| `cost` | counts, tokens in/out/total, cost + scope, tool calls, top tools, wall clock, model, provider |
+| `ops` | counts, tools, top tools, files touched, profile, agent, turns, model, provider |
+| `full` | everything the receipt can print |
+| `auto` | data-driven from the reviewed `kits/auto.json` rules and measured session categories; rules whose v1 field has no v2 equivalent are dropped, never invented |
+
+A kit lists `sections` (`counts`, `evidence` — the verdict, criteria and footer
+sections are mandatory and cannot be listed or removed) and `fields`. Add your own
+by dropping `kits/<name>.json` into `~/.hermes/receipts/` (or
+`$HERMES_RECEIPTS_CONFIG_DIR`) with the same shape and selecting `--kit <name>`; a
+user file with a built-in's name overrides it. An unknown kit or field raises
+instead of silently printing less.
+
+### Evidence lines and fine print
+
+The `evidence` section prints, per criterion, what was checked and — when the
+criterion is not supported — why in the matcher's own reviewed words, e.g.
+`remote ref not found in this window`, `no test run after this version`,
+`artifact bytes were not read in this window`. The fine-print block prints the
+fields the kit selects. The old hardcoded `Tokens/cost: unavailable` line is gone:
+real data fills those fields, and missing data prints `n/a`.
+
+Public receipts never print a raw run identifier: `session`, `task_session_id`,
+`profile` and `agent` are replaced by a non-reversible `sha256-<12>` pseudonym
+(the same rule already used for artifact versions), so two receipts can be
+recognised as the same run without publishing which run it was.
+
+### Themes
+
+`v2/themes/*.json`: `thermal-classic` (cream roll, coloured verdicts, torn edge),
+`minimal-mono` (single ink, inverse video for contradicted), `bold-branded` (dark
+poster, bright inks), `ascii` (7-bit only — for terminals, Discord code blocks and
+plain printers; also renders a PNG) and `dot-matrix` (dotted 9-pin glyphs,
+tractor-feed perforations, green bars). Themes also apply to the pane and to
+`--print-usb`, where the ASCII glyph set is used for `ascii`/`dot-matrix`.
+
+A theme chooses paper, ink, glyph set, font and paper furniture. It **cannot**
+hide, soften, rename or restyle a verdict: a theme file carrying any `hide_*`,
+`soften_*`, `suppress_*`, `mute_*`, `verdict_*` or `glyph*` key is rejected on
+load, non-monochrome themes must give every verdict its own ink, and every verdict
+ink must reach a 4.5:1 contrast ratio against its own paper. Monochrome themes may
+declare one ink only — a mono theme cannot smuggle a green in for `supported`.
+
+### Config surfaces
+
+* CLI: `--kit`, `--fields a,b,c`, `--sections counts,evidence`, `--theme`,
+  `--metrics FILE`, `--from-state STATE_DB`, and `hermes receipt options`.
+* Manifest: the same keys (`kit`, `theme`, `fields`, `sections`, `metrics`,
+  `categories`, `agent`, `from_state`, `session_id`), so one manifest can pin its
+  own presentation.
+* Desktop pane: **What prints** and **How it looks** pickers, filled from
+  `GET /options`; an unsupported kit/theme/field returns 400 rather than being
+  ignored. The verdict block is not a surface: it has no off switch.
+
+Samples: `assets/kits/` holds the minimal/verify/full kits in thermal-classic,
+ascii and dot-matrix for the unverified, supported and contradicted cases (plus
+minimal-mono and bold-branded for the full kit) and `contact-sheet.png`.
+`python3 scripts/render_kits.py` regenerates them from real local readbacks and a
+real session's telemetry.
 
 ## Local verification
 
