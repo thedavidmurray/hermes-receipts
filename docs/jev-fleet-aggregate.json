@@ -1,0 +1,591 @@
+{
+  "window": {
+    "start": 1791499472.403164,
+    "end": 1794091472.403164
+  },
+  "profiles": {
+    "default": {
+      "population": 650,
+      "attempted": 650,
+      "ok": 650,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "anomaly": {
+      "population": 4552,
+      "attempted": 4552,
+      "ok": 4551,
+      "failed": 1,
+      "source_error": null,
+      "reconciled": true
+    },
+    "atlas": {
+      "population": 35,
+      "attempted": 35,
+      "ok": 35,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "beau": {
+      "population": 1252,
+      "attempted": 1252,
+      "ok": 1252,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "builder": {
+      "population": 512,
+      "attempted": 512,
+      "ok": 512,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "christine-chapel": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "christopher-pike": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "critic": {
+      "population": 158,
+      "attempted": 158,
+      "ok": 158,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "cro": {
+      "population": 9,
+      "attempted": 9,
+      "ok": 9,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "edgeless-cc": {
+      "population": 324,
+      "attempted": 324,
+      "ok": 324,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "explorer": {
+      "population": 214,
+      "attempted": 214,
+      "ok": 214,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "fast-scout": {
+      "population": 3,
+      "attempted": 3,
+      "ok": 3,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "guardian": {
+      "population": 14,
+      "attempted": 14,
+      "ok": 14,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "hive": {
+      "population": 2207,
+      "attempted": 2207,
+      "ok": 2206,
+      "failed": 1,
+      "source_error": null,
+      "reconciled": true
+    },
+    "honey": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "jojo": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "kilo": {
+      "population": 1573,
+      "attempted": 1573,
+      "ok": 1573,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "leonard-mccoy": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "lwaxana-troi": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "maison": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "memer": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "minter": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "nga-scout": {
+      "population": 14,
+      "attempted": 14,
+      "ok": 14,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "ombudsman": {
+      "population": 381,
+      "attempted": 381,
+      "ok": 381,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "research-bot": {
+      "population": 3,
+      "attempted": 3,
+      "ok": 3,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "scribe": {
+      "population": 279,
+      "attempted": 279,
+      "ok": 278,
+      "failed": 1,
+      "source_error": null,
+      "reconciled": true
+    },
+    "security-research": {
+      "population": 1,
+      "attempted": 1,
+      "ok": 1,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail": {
+      "population": 483,
+      "attempted": 483,
+      "ok": 483,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail-chroma": {
+      "population": 53,
+      "attempted": 53,
+      "ok": 53,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail-marimo": {
+      "population": 125,
+      "attempted": 125,
+      "ok": 125,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail-newsletter": {
+      "population": 154,
+      "attempted": 154,
+      "ok": 154,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail-repo": {
+      "population": 171,
+      "attempted": 171,
+      "ok": 171,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "snail-trader": {
+      "population": 228,
+      "attempted": 228,
+      "ok": 228,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "specimen": {
+      "population": 0,
+      "attempted": 0,
+      "ok": 0,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "studio": {
+      "population": 5,
+      "attempted": 5,
+      "ok": 5,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "tortillaria-finance": {
+      "population": 11,
+      "attempted": 11,
+      "ok": 11,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "tortillaria-ops": {
+      "population": 60,
+      "attempted": 60,
+      "ok": 60,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "tortillaria-sales": {
+      "population": 5,
+      "attempted": 5,
+      "ok": 5,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "trader": {
+      "population": 41,
+      "attempted": 41,
+      "ok": 41,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "verifier": {
+      "population": 1776,
+      "attempted": 1776,
+      "ok": 1776,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "verse": {
+      "population": 4,
+      "attempted": 4,
+      "ok": 4,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    },
+    "virgil": {
+      "population": 7,
+      "attempted": 7,
+      "ok": 7,
+      "failed": 0,
+      "source_error": null,
+      "reconciled": true
+    }
+  },
+  "attempted": 15304,
+  "ok": 15301,
+  "failed": 3,
+  "factual_agreement": {
+    "claims_done": {
+      "n": 15301,
+      "agree": 12245,
+      "TN": 8816,
+      "TP": 3429,
+      "disagree": 2915,
+      "FN": 472,
+      "unknown": 141,
+      "FP": 2443,
+      "agreement_percent_all_ok": 80.03
+    },
+    "tests_run": {
+      "n": 15301,
+      "agree": 8585,
+      "TP": 588,
+      "disagree": 6183,
+      "FP": 6152,
+      "FN": 31,
+      "TN": 7997,
+      "unknown": 533,
+      "agreement_percent_all_ok": 56.11
+    },
+    "tests_passed": {
+      "n": 15301,
+      "agree": 11275,
+      "TN": 11183,
+      "unknown": 1020,
+      "disagree": 3006,
+      "FP": 2992,
+      "FN": 14,
+      "TP": 92,
+      "agreement_percent_all_ok": 73.69
+    },
+    "files_changed": {
+      "n": 15301,
+      "disagree": 869,
+      "FN": 94,
+      "agree": 13217,
+      "TP": 3404,
+      "TN": 9813,
+      "FP": 775,
+      "unknown": 1215,
+      "agreement_percent_all_ok": 86.38
+    },
+    "pushed_or_published": {
+      "n": 15301,
+      "agree": 14390,
+      "TN": 14167,
+      "disagree": 829,
+      "FP": 375,
+      "FN": 454,
+      "TP": 223,
+      "unknown": 82,
+      "agreement_percent_all_ok": 94.05
+    },
+    "external_side_effect": {
+      "n": 15301,
+      "agree": 13476,
+      "TN": 13405,
+      "disagree": 1768,
+      "FP": 1759,
+      "unknown": 57,
+      "FN": 9,
+      "TP": 71,
+      "agreement_percent_all_ok": 88.07
+    },
+    "cost_heavy": {
+      "n": 15301,
+      "agree": 14330,
+      "TP": 5405,
+      "TN": 8925,
+      "disagree": 937,
+      "FP": 937,
+      "unknown": 34,
+      "agreement_percent_all_ok": 93.65
+    },
+    "long_running": {
+      "n": 15301,
+      "agree": 15179,
+      "TP": 1591,
+      "TN": 13588,
+      "disagree": 117,
+      "FP": 113,
+      "unknown": 5,
+      "FN": 4,
+      "agreement_percent_all_ok": 99.2
+    }
+  },
+  "prevalence": {
+    "cost_heavy": 6342,
+    "long_running": 1704,
+    "tests_run": 6740,
+    "unsurfaced_error": 7416,
+    "session_type:ops": 7141,
+    "claims_done": 5872,
+    "external_side_effect": 1830,
+    "files_changed": 4179,
+    "pushed_or_published": 598,
+    "claims_backed": 1419,
+    "tests_passed": 3084,
+    "session_type:chat": 3702,
+    "session_type:coding": 2268,
+    "session_type:media": 41,
+    "session_type:research": 2149
+  },
+  "cooccurrence": {
+    "cost_heavy & long_running": 1565,
+    "cost_heavy & tests_run": 4332,
+    "cost_heavy & unsurfaced_error": 3937,
+    "long_running & tests_run": 1308,
+    "long_running & unsurfaced_error": 1118,
+    "tests_run & unsurfaced_error": 4217,
+    "claims_done & cost_heavy": 3735,
+    "claims_done & external_side_effect": 858,
+    "claims_done & files_changed": 3101,
+    "claims_done & long_running": 882,
+    "claims_done & pushed_or_published": 422,
+    "claims_done & tests_run": 4042,
+    "claims_done & unsurfaced_error": 3768,
+    "cost_heavy & external_side_effect": 1084,
+    "cost_heavy & files_changed": 3012,
+    "cost_heavy & pushed_or_published": 495,
+    "external_side_effect & files_changed": 545,
+    "external_side_effect & long_running": 352,
+    "external_side_effect & pushed_or_published": 295,
+    "external_side_effect & tests_run": 1179,
+    "external_side_effect & unsurfaced_error": 1063,
+    "files_changed & long_running": 1102,
+    "files_changed & pushed_or_published": 444,
+    "files_changed & tests_run": 3357,
+    "files_changed & unsurfaced_error": 2502,
+    "long_running & pushed_or_published": 245,
+    "pushed_or_published & tests_run": 455,
+    "pushed_or_published & unsurfaced_error": 400,
+    "claims_backed & tests_run": 671,
+    "cost_heavy & tests_passed": 2292,
+    "long_running & tests_passed": 616,
+    "tests_passed & tests_run": 2367,
+    "files_changed & tests_passed": 1666,
+    "tests_passed & unsurfaced_error": 1682,
+    "claims_backed & claims_done": 659,
+    "claims_backed & cost_heavy": 289,
+    "claims_backed & files_changed": 402,
+    "claims_backed & unsurfaced_error": 856,
+    "claims_backed & long_running": 40,
+    "claims_done & tests_passed": 2200,
+    "claims_backed & tests_passed": 127,
+    "pushed_or_published & tests_passed": 308,
+    "external_side_effect & tests_passed": 385,
+    "claims_backed & external_side_effect": 167,
+    "claims_backed & pushed_or_published": 18
+  },
+  "latency_ms": {
+    "median": 166,
+    "max": 964
+  },
+  "usage": {
+    "input_tokens": 46592705,
+    "output_tokens": 7316786
+  },
+  "limitations": [
+    "Agreement is against invocation heuristics, NOT independent outcome truth.",
+    "Bounded sampled digests can omit evidence.",
+    "Jev scores are uncalibrated; judgments experimental.",
+    "No gold labels read or evaluated by this scan.",
+    "This is the frozen fleet-run baseline. Post-scan wrapped-result parsing and response-allowlist hardening were unit-tested, not rescanned.",
+    "Private answers are not published. Only aggregate output, no session IDs or message text.",
+    "SQLite SQL is read-only; normal WAL readers can update transient SHM read marks. Source bytes/metadata were not asserted immutable.",
+    "Usage totals cover successful replies; failed-call provider billing is unknown. No USD pricing was inferred."
+  ],
+  "sources_count": 42,
+  "window_utc": {
+    "start": "2026-10-08T22:44:32.403164+00:00",
+    "end": "2026-11-07T22:44:32.403164+00:00"
+  },
+  "private_jsonl_sha256": "51af3e4f285e3718b7533d5b8855f839c724e0f4dcb4fc11349f9eb64147f1cf",
+  "failure_types": {
+    "JevError": 3
+  },
+  "by_model_type": {
+    "ops": {
+      "n": 7141,
+      "tests_run": 3655,
+      "unsurfaced_error": 4069,
+      "cost_heavy": 3226,
+      "long_running": 736,
+      "claims_done": 2908,
+      "files_changed": 1429,
+      "pushed_or_published": 208,
+      "external_side_effect": 1421,
+      "claims_backed": 604,
+      "tests_passed": 1268
+    },
+    "chat": {
+      "n": 3702,
+      "unsurfaced_error": 647,
+      "claims_backed": 290,
+      "long_running": 17,
+      "cost_heavy": 15,
+      "claims_done": 50,
+      "tests_run": 1,
+      "tests_passed": 2
+    },
+    "coding": {
+      "n": 2268,
+      "unsurfaced_error": 1426,
+      "cost_heavy": 1438,
+      "tests_run": 1558,
+      "files_changed": 1188,
+      "long_running": 619,
+      "claims_done": 1256,
+      "claims_backed": 380,
+      "tests_passed": 869,
+      "pushed_or_published": 187,
+      "external_side_effect": 237
+    },
+    "media": {
+      "n": 41,
+      "claims_done": 34,
+      "tests_run": 32,
+      "unsurfaced_error": 26,
+      "cost_heavy": 34,
+      "long_running": 19,
+      "files_changed": 22,
+      "tests_passed": 17,
+      "external_side_effect": 12,
+      "pushed_or_published": 7,
+      "claims_backed": 1
+    },
+    "research": {
+      "n": 2149,
+      "claims_done": 1624,
+      "files_changed": 1540,
+      "pushed_or_published": 196,
+      "unsurfaced_error": 1248,
+      "cost_heavy": 1629,
+      "tests_run": 1494,
+      "claims_backed": 144,
+      "tests_passed": 928,
+      "long_running": 313,
+      "external_side_effect": 160
+    }
+  }
+}

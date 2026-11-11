@@ -118,7 +118,11 @@ def test_cli_task_actual_probe_and_no_manifest_forgery(tmp_path, capsys):
     artifact.unlink()
     assert plugin._cli_handler(args) == 0
     output = capsys.readouterr().out
-    assert 'COMPLETION: CONTRADICTED' not in output  # missing artifact cannot certify completion
+    # A missing artifact is an observed mismatch, and the 2026-11-10 review mandates the
+    # worst-required-verdict rule: the top line reads CONTRADICTED, never a green
+    # SUPPORTED completion while a required criterion failed.
+    assert 'COMPLETION: SUPPORTED' not in output
+    assert 'COMPLETION: CONTRADICTED \u2717' in output
     assert str(manifest) not in output and str(artifact) not in output
 
     # A real file read cannot certify a different declared digest/version.
@@ -138,7 +142,12 @@ def test_completion_intercept_is_registered_but_opt_in():
         def register_cli_command(self, *args, **kwargs): pass
     ctx = Context()
     plugin.register(ctx)
-    assert ctx.hooks == ['post_tool_call', 'transform_llm_output', 'pre_tool_call']
+    # The intercept stays opt-in (env-gated) *and* the automatic triggers register
+    # their real host hooks alongside it.
+    assert ctx.hooks[:3] == ['post_tool_call', 'transform_llm_output', 'pre_tool_call']
+    assert set(ctx.hooks[3:]) == {'transform_llm_output', 'post_llm_call',
+                                  'kanban_task_completed', 'kanban_task_blocked',
+                                  'on_session_end', 'subagent_stop', 'agent_loop_stopped'}
 
 
 def test_v2_usb_uses_exact_public_text_and_reports_fallback(tmp_path, monkeypatch, capsys):

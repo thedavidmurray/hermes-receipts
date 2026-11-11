@@ -11,12 +11,35 @@ from hermes_constants import get_hermes_home
 from .history import receipt_from_state, verify_hash
 from .receipt_core import classify, digest, match_claims
 from .render import render_png, render_text
+from .v2.render import render_task_png, render_report_png
 
 LOG = logging.getLogger(__name__)
 
 
+#: The plugin's own name: what it keys its profile-scoped ``plugin-data`` dir on.
+#: It shipped as ``receipts`` before the catalog rename (that key is taken
+#: upstream), so an existing install's ledger and images still live under the
+#: older dir and stay readable until the new one holds data of its own.
+DATA_NAME = 'receipt-printer'
+LEGACY_DATA_NAME = 'receipts'
+
+
+def _data_name() -> str:
+    """``plugin-data/<name>`` to use: the legacy dir while it is the only ledger."""
+    legacy = get_hermes_home() / 'plugin-data' / LEGACY_DATA_NAME
+    current = get_hermes_home() / 'plugin-data' / DATA_NAME
+    if (legacy / 'data.db').is_file() and not (current / 'data.db').is_file():
+        return LEGACY_DATA_NAME
+    return DATA_NAME
+
+
+def data_dir() -> Path:
+    """This profile's plugin-data dir, honouring the pre-rename ``plugin-data/receipts``."""
+    return plugin_data_dir(_data_name())
+
+
 def _db():
-    db = plugin_db('receipts')
+    db = plugin_db(_data_name())
     db.execute('''CREATE TABLE IF NOT EXISTS ledger (
       id INTEGER PRIMARY KEY, session_id TEXT, turn_id TEXT, task_id TEXT, call_id TEXT UNIQUE,
       tool TEXT NOT NULL, args_sha256 TEXT NOT NULL, action TEXT, label TEXT,
@@ -45,21 +68,33 @@ def _source_db():
 
 def _receipt(session_id=None, turn_id=None):
     return receipt_from_state(_source_db(), session_id=session_id or None, turn_id=turn_id,
-                              ledger_path=plugin_data_dir('receipts') / 'data.db')
+                              ledger_path=data_dir() / 'data.db',
+                              classify_jev=os.environ.get('HERMES_RECEIPTS_JEV') == '1')
 
 
 def _image(receipt):
     # Never use a caller-provided path: receipts may be requested from chat.
-    path = plugin_data_dir('receipts') / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
+    path = data_dir() / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
     return render_png(receipt, path)
 
 
 def _slash(raw_args, session_id='', **kwargs):
+    arg = raw_args.strip()
+    if arg and not arg.isdigit():
+        return 'Usage: /receipt [final message id]'
+    turn_id = int(arg) if arg else None  # latest profile turn by default
     try:
-        arg = raw_args.strip()
-        if arg and not arg.isdigit():
-            return 'Usage: /receipt [final message id]'
-        receipt = _receipt(turn_id=int(arg) if arg else None)  # latest profile turn by default
+        # An on-demand receipt goes through the trigger engine, so `triggers.on_demand`
+        # and `include:` govern a requested receipt exactly as they govern an automatic
+        # one. The legacy renderer stays as the fallback when nothing can be read.
+        from .v2.triggers import on_demand
+        result = on_demand(session_id or None, turn_id)
+        if result is not None and result.get('png'):
+            return f"{result['text']}\nMEDIA:{result['png']}"
+    except Exception:
+        LOG.exception('on-demand receipt failed; falling back to the legacy renderer')
+    try:
+        receipt = _receipt(turn_id=turn_id)
         path = _image(receipt)
         return f"{render_text(receipt)}\nMEDIA:{path}"
     except (OSError, ValueError) as exc:
@@ -80,7 +115,7 @@ def _cli_setup(parser):
 
 
 def _cli_handler(args):
-    if args.receipt_action in ('task', 'fleet', 'report'):
+    if args.receipt_action in ('task', 'fleet', 'report', 'config', 'options', 'triggers'):
         from .v2.cli import handle
         return handle(args)
     try:
@@ -100,7 +135,7 @@ def _cli_handler(args):
                 if not ok:
                     return 1
         elif args.receipt_action == 'verify':
-            receipt = verify_hash(_source_db(), args.hash, ledger_path=plugin_data_dir('receipts') / 'data.db')
+            receipt = verify_hash(_source_db(), args.hash, ledger_path=data_dir() / 'data.db')
             if receipt is None:
                 print('NOT VERIFIED: hash not found in this profile state.db')
                 return 1
@@ -143,9 +178,26 @@ def _gate(tool_name='', args=None, session_id='', **kwargs):
     return None
 
 
+def _trigger_hook(name):
+    """One registered hook per trigger surface. Every handler fails open by design."""
+
+    def handler(**kwargs):
+        from .v2 import triggers
+        return triggers.fire(name, **kwargs)
+
+    handler.__name__ = f'receipt_printer_{name.replace("-", "_")}_trigger'
+    return handler
+
+
 def register(ctx):
     ctx.register_hook('post_tool_call', _post_tool_call)
     ctx.register_hook('transform_llm_output', _stamp)
     ctx.register_hook('pre_tool_call', _gate)
+    # Automatic triggers. The host fires these; `v2.triggers` decides what prints,
+    # where it goes, and never blocks the turn (see v2/triggers.py).
+    for hook in ('transform_llm_output', 'post_llm_call', 'kanban_task_completed',
+                 'kanban_task_blocked', 'on_session_end', 'subagent_stop',
+                 'agent_loop_stopped'):
+        ctx.register_hook(hook, _trigger_hook(hook))
     ctx.register_command('receipt', _slash, description='Print an evidence receipt for an agent turn', args_hint='[final message id]')
     ctx.register_cli_command('receipt', 'Show and verify Hermes turn receipts', _cli_setup, _cli_handler)

@@ -1,0 +1,19 @@
+{
+  "name": "bold-branded",
+  "schema_version": 2,
+  "description": "Bold branded poster: dark paper, bright verdict inks, heavy type, no perforation.",
+  "frame": "#05070a",
+  "paper": "#11161d",
+  "ink": "#eef3f8",
+  "ink_supported": "#39d353",
+  "ink_contradicted": "#ff6b6b",
+  "ink_unverified": "#ffcc33",
+  "ink_not_evaluable": "#9aa4b2",
+  "ink_muted": "#7d8794",
+  "mono": false,
+  "glyph_set": "unicode",
+  "font": "standard",
+  "perforation": "none",
+  "green_bar": false,
+  "brand_text": "GET THE RECEIPT"
+}

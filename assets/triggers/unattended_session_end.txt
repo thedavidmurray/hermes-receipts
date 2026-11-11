@@ -1,0 +1,39 @@
+HERMES / RECEIPTS
+Scheduled session receipt
+GET THE RECEIPT
+--------------------------------------
+COMPLETION: SUPPORTED [OK]
+DECLARED CLAIMS
+SUPPORTED [OK]: 2
+CONTRADICTED [X]: 0
+UNVERIFIED [?]: 0
+NOT EVALUABLE [-]: 0
+--------------------------------------
+REQUIRED CRITERIA
+REQ 1: Shipped it: all 285 tests pass and the
+branch is pushed to origin. (experimental)
+  SUPPORTED [OK]
+REQ 2: Shipped it: all 285 tests pass and the
+branch is pushed to origin.
+  SUPPORTED [OK]
+--------------------------------------
+EVIDENCE CHECKED
+1. checked: a recorded test run in this turn
+2. checked: the remote push this turn made
+--------------------------------------
+FINE PRINT
+TASK/SESSION ID: sha256-a6c38fe8bcab
+CLAIMS DETECTED: 2 declared
+DETECTOR: deterministic-2.0
+MATCHER: deterministic-2.0
+RECEIPT HASH: sha256-fea56324619ba8a2dc4b1966a
+  10e39f88a0419dfed334cc7c54c3b96367fad1c
+--------------------------------------
+VERSION: sha256-3babe7a2788c
+WINDOW UTC: 2026-11-11 UTC to 2026-11-11 UTC
+VERIFY: sha256-fea56324619b
+Every claim in this window matched an observed
+tool call; not unrestricted proof of
+completeness.
+Experimental viewer; evidence scope and coverage
+are limited.

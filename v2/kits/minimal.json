@@ -1,0 +1,7 @@
+{
+  "name": "minimal",
+  "schema_version": 2,
+  "description": "Verdict plus one id. No counts, no evidence lines, no fine print; anything a chosen field cannot fill prints n/a.",
+  "sections": [],
+  "fields": ["task_session_id"]
+}

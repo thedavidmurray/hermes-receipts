@@ -1,0 +1,8 @@
+{
+  "name": "verify",
+  "schema_version": 2,
+  "description": "Default verification kit: the completion verdict, per-claim verdicts, the evidence checked for each claim, and the reason a claim is not supported.",
+  "sections": ["counts", "evidence"],
+  "fields": ["task_session_id", "claims_detected", "evidence_locators", "detector_version", "matcher_version", "receipt_hash"],
+  "experimental_kinds": ["tests_pass"]
+}

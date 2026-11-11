@@ -1,10 +1,16 @@
-name: receipts
-version: 0.1.0
+name: receipt-printer
+version: "0.2.0"
 description: "Store-style receipts for Hermes turns: observed tools and conservative claims, with read-only historical backfill."
 requires_hermes: ">=0.21.7"
 provides_hooks:
   - post_tool_call
   - transform_llm_output
   - pre_tool_call
+  - post_llm_call
+  - kanban_task_completed
+  - kanban_task_blocked
+  - on_session_end
+  - subagent_stop
+  - agent_loop_stopped
 python_dependencies:
   - "Pillow>=10.0,<13"

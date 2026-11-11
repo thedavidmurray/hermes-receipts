@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('receipts_test_package', ROOT / '__init__.py',
+spec = importlib.util.spec_from_file_location('receipt_printer_test_package', ROOT / '__init__.py',
                                               submodule_search_locations=[str(ROOT)])
 plugin = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = plugin
@@ -52,6 +52,19 @@ def test_retroactive_turn_boundaries_and_failures(historical_db):
         plugin.verify_hash(historical_db, old['hash'][:8])
 
 
+def test_long_initial_inference_counts_toward_auto_duration(historical_db):
+    with sqlite3.connect(historical_db) as conn:
+        conn.execute('DELETE FROM messages WHERE id NOT IN (5,6,8)')
+        conn.execute('UPDATE messages SET timestamp=0 WHERE id=5')
+        conn.execute("UPDATE messages SET timestamp=650, tool_calls=NULL, content='Thinking.' WHERE id=6")
+        conn.execute("UPDATE messages SET timestamp=700, content='Hello.' WHERE id=8")
+    receipt = plugin.receipt_from_state(historical_db, turn_id=8)
+    assert receipt['wall_seconds'] == 700
+    assert receipt['classification']['categories']['session_type'] == 'chat'
+    assert receipt['classification']['categories']['long_running'] is True
+    assert 'duration' in receipt['auto_fields']
+
+
 def test_read_only_backfill_and_png(historical_db, tmp_path):
     before = historical_db.stat().st_mtime_ns
     receipt = plugin.receipt_from_state(historical_db)
@@ -64,11 +77,19 @@ def test_read_only_backfill_and_png(historical_db, tmp_path):
 
 def test_gateway_slash_media_is_deliverable(historical_db, monkeypatch):
     from gateway.platforms.base import BasePlatformAdapter
+    from receipt_printer_test_package.v2 import fields
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    monkeypatch.setenv('HERMES_RECEIPTS_CONFIG_DIR', str(historical_db.parent / 'cfg'))
+    fields.reload()
     reply = plugin._slash('8')
     media, cleaned = BasePlatformAdapter.extract_media(reply)
     assert len(media) == 1 and Path(media[0][0]).is_file()
-    assert media[0][0].endswith('.png') and 'VERIFIED    1 / 1' in cleaned
+    # `/receipt` now renders through the on_demand trigger, so the reply is the same
+    # public receipt the printer prints: the media contract holds, and the verdict
+    # line is the one immutable line every receipt carries.
+    assert media[0][0].endswith('.png')
+    assert 'COMPLETION: SUPPORTED \u2713' in cleaned
+    assert 'tests pass' in cleaned and 'CLAIMS DETECTED' in cleaned
     assert 'MEDIA:' not in cleaned
 
 
@@ -76,7 +97,7 @@ def test_live_hook_overlay_preserves_hash_and_duration(historical_db, monkeypatc
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
     plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q'},
                            status='ok', session_id='s1', turn_id='5', tool_call_id='c2', duration_ms=348)
-    ledger_path = historical_db.parent / 'plugin-data' / 'receipts' / 'data.db'
+    ledger_path = historical_db.parent / 'plugin-data' / 'receipt-printer' / 'data.db'
     receipt = plugin.receipt_from_state(historical_db, turn_id=8, ledger_path=ledger_path)
     assert receipt['rows'][0]['duration_ms'] == 348
     assert plugin.verify_hash(historical_db, receipt['hash'], ledger_path=ledger_path)['final_id'] == 8
@@ -86,7 +107,7 @@ def test_dashboard_api_serves_authenticated_router_payload(historical_db, monkey
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
-    spec = importlib.util.spec_from_file_location('receipts_test_dashboard', ROOT / 'dashboard' / 'plugin_api.py')
+    spec = importlib.util.spec_from_file_location('receipt_printer_test_dashboard', ROOT / 'dashboard' / 'plugin_api.py')
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -109,7 +130,7 @@ def test_dashboard_api_serves_authenticated_router_payload(historical_db, monkey
 
 
 def test_claims_require_matching_target_and_success():
-    from receipts_test_package.receipt_core import match_claims
+    from receipt_printer_test_package.receipt_core import match_claims
     rows = [{'tool': 'write_file', 'label': 'other.py', 'action': 'write', 'status': 'ok', 'call_id': 'a'},
             {'tool': 'terminal', 'label': 'test command', 'action': 'test', 'status': 'error', 'call_id': 'b'}]
     claims = match_claims('Wrote example.py. 4 tests pass. Ran pytest.', rows)
@@ -120,7 +141,7 @@ def test_claims_require_matching_target_and_success():
 
 
 def test_claim_extraction_is_conservative():
-    from receipts_test_package.receipt_core import extract_claims, match_claims
+    from receipt_printer_test_package.receipt_core import extract_claims, match_claims
     assert extract_claims('I did not push to main. Please run pytest. `tests pass`') == []
     assert match_claims('The subagent pushed to main.', [])[0]['verdict'] == 'not observed'
     assert match_claims('Pushed to main.', [])[0]['verdict'] == '✗'
@@ -139,13 +160,13 @@ def test_claim_extraction_is_conservative():
     'Neither service has ever been deployed.',
 ])
 def test_disclaimers_and_user_actions_are_not_agent_claims(answer):
-    from receipts_test_package.receipt_core import extract_claims, match_claims
+    from receipt_printer_test_package.receipt_core import extract_claims, match_claims
     assert extract_claims(answer) == []
     assert match_claims(answer, []) == []
 
 
 def test_disclaimer_does_not_hide_later_local_action():
-    from receipts_test_package.receipt_core import extract_claims
+    from receipt_printer_test_package.receipt_core import extract_claims
     assert [c['kind'] for c in extract_claims('Nothing was deployed, but I committed changes.')] == ['commit']
 
 
@@ -165,11 +186,11 @@ def test_optional_gate_default_observe_and_scoped_block(historical_db, monkeypat
 
 
 def test_hook_ledger_only_digests(monkeypatch, tmp_path):
-    from receipts_test_package import receipt_core
+    from receipt_printer_test_package import receipt_core
     monkeypatch.setenv('HERMES_HOME', str(tmp_path))
     plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q', 'password': 'PRIVATE'},
                            status='ok', session_id='s', turn_id='t', tool_call_id='c1', duration_ms=27)
-    db = sqlite3.connect(tmp_path / 'plugin-data' / 'receipts' / 'data.db')
+    db = sqlite3.connect(tmp_path / 'plugin-data' / 'receipt-printer' / 'data.db')
     row = db.execute('SELECT tool,action,status,duration_ms,args_sha256 FROM ledger').fetchone()
     assert row[:4] == ('terminal', 'test', 'ok', 27)
     assert len(row[4]) == 64 and 'PRIVATE' not in repr(row)
@@ -177,6 +198,51 @@ def test_hook_ledger_only_digests(monkeypatch, tmp_path):
 
 
 def test_no_printer_fails_cleanly():
-    from receipts_test_package.printer import print_receipt
+    from receipt_printer_test_package.printer import print_receipt
     ok, message = print_receipt('test', 0xffff, 0xffff)
     assert not ok and ('not installed' in message or 'unavailable' in message)
+
+
+def test_legacy_plugin_data_dir_stays_readable_after_the_rename(tmp_path, monkeypatch):
+    """An install that predates the rename keeps its own ledger where it already is."""
+    monkeypatch.setenv('HERMES_HOME', str(tmp_path))
+    legacy = tmp_path / 'plugin-data' / 'receipts'
+    legacy.mkdir(parents=True)
+    sqlite3.connect(legacy / 'data.db').close()
+    assert plugin._data_name() == 'receipts'
+    assert plugin.data_dir() == legacy
+    plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q'}, status='ok',
+                           session_id='s', turn_id='t', tool_call_id='c1', duration_ms=5)
+    with sqlite3.connect(legacy / 'data.db') as conn:
+        assert conn.execute('SELECT count(*) FROM ledger').fetchone()[0] == 1
+
+
+def test_new_plugin_data_dir_wins_once_it_holds_a_ledger(tmp_path, monkeypatch):
+    """The renamed dir is adopted as soon as it has a ledger of its own."""
+    monkeypatch.setenv('HERMES_HOME', str(tmp_path))
+    legacy = tmp_path / 'plugin-data' / 'receipts'
+    legacy.mkdir(parents=True)
+    sqlite3.connect(legacy / 'data.db').close()
+    current = tmp_path / 'plugin-data' / 'receipt-printer'
+    current.mkdir(parents=True)
+    sqlite3.connect(current / 'data.db').close()
+    assert plugin._data_name() == 'receipt-printer'
+    plugin._post_tool_call(tool_name='terminal', args={'command': 'pytest -q'}, status='ok',
+                           session_id='s', turn_id='t', tool_call_id='c1', duration_ms=5)
+    with sqlite3.connect(current / 'data.db') as conn:
+        assert conn.execute('SELECT count(*) FROM ledger').fetchone()[0] == 1
+    with sqlite3.connect(legacy / 'data.db') as conn:
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='ledger'").fetchone()[0] == 0
+
+
+def test_config_dir_adopts_the_pre_rename_directory(tmp_path, monkeypatch):
+    """The plugin config dir moves with the name, but an old install's dir is adopted."""
+    from receipt_printer_test_package.v2 import fields
+    monkeypatch.delenv('HERMES_RECEIPTS_CONFIG_DIR', raising=False)
+    monkeypatch.setenv('HOME', str(tmp_path))
+    legacy = tmp_path / '.hermes' / 'receipts'
+    legacy.mkdir(parents=True)
+    assert fields.config_dir() == legacy
+    renamed = tmp_path / '.hermes' / 'receipt-printer'
+    renamed.mkdir(parents=True)
+    assert fields.config_dir() == renamed

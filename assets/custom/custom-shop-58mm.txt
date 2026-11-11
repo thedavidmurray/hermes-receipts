@@ -1,0 +1,75 @@
+MURRAY & SONS AUTOMATION
+Your agent says it's done. Get
+the receipt.
+agent work, itemised
+--------------------------------
+COMPLETION: SUPPORTED [OK]
+DECLARED CLAIMS
+SUPPORTED [OK]: 1
+CONTRADICTED [X]: 0
+UNVERIFIED [?]: 0
+NOT EVALUABLE [-]: 0
+--------------------------------
+REQUIRED CRITERIA
+REQ 1: Artifact bytes match
+  SUPPORTED [OK]
+--------------------------------
+EVIDENCE CHECKED
+1. checked: artifact bytes
+   compared with the declared
+   digest
+--------------------------------
+FINE PRINT
+TASK/SESSION ID:
+  sha256-b5d02d860a30
+SESSION ID:
+  sha256-4f78700190b6
+PROFILE: sha256-54c5ccf0f305
+AGENT: sha256-54c5ccf0f305
+MODEL:
+  deepseek/deepseek-v4.1-flash
+PROVIDER: custom:runtime-nous
+TURNS: 67
+TOOL CALLS: 96
+TOP TOOLS: terminal x42, patch
+  x38, read_file x12, write_file
+  x3, vision_analyze x1
+TOKENS IN: 121,411
+TOKENS OUT: 51,598
+TOKENS TOTAL: 173,009
+COST (EST.): $0.0680
+COST SCOPE: session totals
+  (not per turn)
+DURATION: 941.9s
+FILES TOUCHED: 8
+CLAIMS DETECTED: 1 declared
+CLAIM VERDICTS: Artifact bytes
+  match: SUPPORTED [OK]
+EVIDENCE: Artifact bytes
+  match: sha256-742833caae0e
+VERSION: sha256-324b79272857
+DETECTOR: deterministic-2.0
+MATCHER: outcome-2.0
+PLUGIN: 0.1.0
+PLUGIN SHA: e88d2c3874a2
+RECEIPT HASH: sha256-4110d6fbd
+  d67c82bdaf5620ee26a61bdd052b7d
+  b3b7552a52b51be8e6cf7eb15
+GENERATED:
+  2026-11-11T02:27:05Z
+SESSION SPEND: 173,009 tok /
+  $0.0680 est.
+TERMS: Agent promises are not
+  proof. Evidence is.
+--------------------------------
+VERSION: sha256-324b79272857
+WINDOW UTC: 2026-11-11 UTC to
+2026-11-11 UTC
+THANK YOU FOR YOUR PATRONAGE
+VERIFY: sha256-4110d6fbdd67
+Declared required criteria
+supported for this version and
+window; not unrestricted proof
+of completeness.
+Experimental viewer; evidence
+scope and coverage are limited.

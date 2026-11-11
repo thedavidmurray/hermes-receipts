@@ -28,7 +28,8 @@ _RULES = tuple((kind, re.compile(pattern, re.I)) for kind, pattern in _PATTERNS)
 _FENCED = re.compile(r'```.*?(?:```|\Z)|~~~.*?(?:~~~|\Z)', re.S)
 _INLINE = re.compile(r'`[^`\n]*`|"[^"\n]*"|“[^”\n]*”|(?<!\w)\x27[^\x27\n]*\x27(?!\w)')
 _BREAK = re.compile(r'[.!?;](?=\s|$)|\n+|\s+[—–]\s+|,\s*(?=(?:but|however|then|yet)\b)|\s+(?:but|however|then|yet|and\s+I)\s+', re.I)
-_NEGATION = re.compile(r'\b(?:not|never|nothing|neither|none|zero|0\s+(?:new|other|additional)?|no|didn[\x27’]?t|haven[\x27’]?t|hasn[\x27’]?t|wasn[\x27’]?t|weren[\x27’]?t|couldn[\x27’]?t|failed\s+to|without)\b', re.I)
+_NEGATOR_BEFORE_YET = re.compile(r"(?:\b(?:not|never)|n['’]t)\s*$", re.I)
+_NEGATION = re.compile(r'\b(?:not|never|nothing|neither|none|zero|0\s+(?:new|other|additional)?|no|\w+n[\x27’]t|didn[\x27’]?t|haven[\x27’]?t|hasn[\x27’]?t|wasn[\x27’]?t|weren[\x27’]?t|couldn[\x27’]?t|failed\s+to|without)\b', re.I)
 _OTHER_ACTOR = re.compile(r'\b(?:you|your)\b', re.I)
 _FUTURE = re.compile(r'\b(?:will|would|should|must|might|may|going\s+to|plan(?:ning)?\s+to|intend\s+to|need\s+to|about\s+to|still\s+need\s+to)\b', re.I)
 _SKIP_LINE = re.compile(r'^\s*(?:>|#{1,6}\s|https?://|(?:plan|todo|next|upcoming|future|example|hypothetical|instructions?)\s*:)', re.I)
@@ -52,6 +53,11 @@ def _mask(answer: str) -> str:
 def _clauses(text: str):
     start = 0
     for boundary in _BREAK.finditer(text):
+        # "not yet pushed" is one negated proposition, not two clauses.
+        # Keep the same rule for the comma form ("not, yet pushed").
+        if (re.match(r',?\s*yet\b', text[boundary.start():], re.I)
+                and _NEGATOR_BEFORE_YET.search(text[start:boundary.start()])):
+            continue
         if start < boundary.start():
             yield start, boundary.start()
         start = boundary.end()

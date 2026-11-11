@@ -1,0 +1,461 @@
+{
+  "async_proof": {
+    "claim_check_caught": {
+      "background_delivery": true,
+      "callback_returned_ms": 0.136,
+      "expected_fire": true,
+      "hook": "transform_llm_output",
+      "waited_seconds": 10.0
+    },
+    "claim_check_clean": {
+      "background_delivery": false,
+      "callback_returned_ms": 0.168,
+      "expected_fire": false,
+      "hook": "transform_llm_output",
+      "waited_seconds": 10.0
+    },
+    "task_complete": {
+      "background_delivery": true,
+      "callback_returned_ms": 2.054,
+      "expected_fire": true,
+      "hook": "kanban_task_completed",
+      "waited_seconds": 10.0
+    },
+    "unattended_session_end": {
+      "background_delivery": true,
+      "callback_returned_ms": 0.13,
+      "expected_fire": true,
+      "hook": "on_session_end",
+      "waited_seconds": 10.0
+    }
+  },
+  "config_source": "receipts.yaml",
+  "digest_cron": "# receipts digest: enabled. Install this line yourself; the plugin never schedules.\n0 8 * * * cd /Users/djm/claude-projects/github-repos/hermes-receipts/.worktrees/triggers && python3 scripts/digest.py --report-db ~/.hermes/receipts/digest.db --png ~/receipts/digest-$(date +%F).png\n",
+  "hooks_registered": [
+    "agent_loop_stopped",
+    "kanban_task_blocked",
+    "kanban_task_completed",
+    "on_session_end",
+    "post_llm_call",
+    "post_tool_call",
+    "pre_tool_call",
+    "subagent_stop",
+    "transform_llm_output"
+  ],
+  "include": {
+    "claims": {
+      "commit": true,
+      "deploy": true,
+      "push": true,
+      "run": true,
+      "send": false,
+      "tests": true,
+      "write": true
+    },
+    "evidence": "summary",
+    "experimental": {
+      "external": false,
+      "jev": false
+    },
+    "max_claims": 12,
+    "redaction": "public",
+    "show": {
+      "cost": true,
+      "model": true,
+      "tokens": true
+    },
+    "tools": {
+      "exclude": [],
+      "include": [],
+      "preset": "actions_only"
+    }
+  },
+  "mismatched": [],
+  "receipts": {
+    "claim_check_caught": {
+      "ascii_lines": 40,
+      "completion": "contradicted",
+      "criteria": [
+        {
+          "claim_kind": "tests",
+          "verdict": "supported"
+        },
+        {
+          "claim_kind": "deploy",
+          "verdict": "contradicted"
+        }
+      ],
+      "decision": {
+        "fire": true,
+        "reason": "1 of 2 claim(s) unestablished"
+      },
+      "hidden_claims": 0,
+      "hook": "transform_llm_output",
+      "payload_keys": [
+        "platform",
+        "response_text",
+        "session_id"
+      ],
+      "png": "/Users/djm/claude-projects/github-repos/hermes-receipts/.worktrees/triggers/assets/triggers/claim_check_caught.png",
+      "png_sha256": "ce53cf892ffa0cc7",
+      "trigger": "claim_check"
+    },
+    "task_complete": {
+      "ascii_lines": 39,
+      "completion": "supported",
+      "criteria": [
+        {
+          "claim_kind": "tests",
+          "verdict": "supported"
+        },
+        {
+          "claim_kind": "push",
+          "verdict": "supported"
+        }
+      ],
+      "decision": {
+        "fire": true,
+        "reason": "when=always"
+      },
+      "hidden_claims": 0,
+      "hook": "kanban_task_completed",
+      "payload_keys": [
+        "assignee",
+        "board",
+        "platform",
+        "profile_name",
+        "run_id",
+        "summary",
+        "task_id"
+      ],
+      "png": "/Users/djm/claude-projects/github-repos/hermes-receipts/.worktrees/triggers/assets/triggers/task_complete.png",
+      "png_sha256": "a025f6c7987b70a0",
+      "trigger": "task_complete"
+    },
+    "unattended_session_end": {
+      "ascii_lines": 39,
+      "completion": "supported",
+      "criteria": [
+        {
+          "claim_kind": "tests",
+          "verdict": "supported"
+        },
+        {
+          "claim_kind": "push",
+          "verdict": "supported"
+        }
+      ],
+      "decision": {
+        "fire": true,
+        "reason": "when=always"
+      },
+      "hidden_claims": 0,
+      "hook": "on_session_end",
+      "payload_keys": [
+        "completed",
+        "failed",
+        "interrupted",
+        "model",
+        "platform",
+        "session_id",
+        "task_id",
+        "turn_exit_reason",
+        "turn_id"
+      ],
+      "png": "/Users/djm/claude-projects/github-repos/hermes-receipts/.worktrees/triggers/assets/triggers/unattended_session_end.png",
+      "png_sha256": "1ea36e7b92638f22",
+      "trigger": "unattended_session_end"
+    }
+  },
+  "state_file": "/var/folders/_7/b9yz2ft92pvd52v5y26rkmjr0000gn/T/receipts-triggers-7z_747k4/cfg/triggers-state.json",
+  "triggers": [
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": false,
+      "derived": "/receipt, `hermes receipt last|task`, the pane button",
+      "destinations": {
+        "chat": true,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "(no hook: the request is the trigger)",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "on_demand",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "direct: the agent said it is done",
+      "destinations": {
+        "chat": true,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "kanban_task_completed",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "task_complete",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "derived: a goal_mode card, plus the end of a goal session (the host has no goal-loop hook)",
+      "destinations": {
+        "chat": false,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "kanban_task_completed",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "goal_complete",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "direct: an answer that declares an action",
+      "destinations": {
+        "chat": true,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "transform_llm_output",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "claim_check",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "exceptions_only"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "derived: a cron/scheduled session (the host has no cron hook)",
+      "destinations": {
+        "chat": true,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "on_session_end",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "unattended_session_end",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "derived: every other session end",
+      "destinations": {
+        "chat": false,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": false,
+      "hook": "on_session_end",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "interactive_session_end",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "min_claims"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "direct",
+      "destinations": {
+        "chat": false,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": false,
+      "hook": "subagent_stop",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "subagent_stop",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "direct",
+      "destinations": {
+        "chat": false,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": false,
+      "hook": "kanban_task_blocked",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "task_blocked",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    },
+    {
+      "columns": null,
+      "cooldown": 0,
+      "dedupe": true,
+      "derived": "`hermes receipt triggers --cron` prints the line to install",
+      "destinations": {
+        "chat": false,
+        "device": null,
+        "file": null,
+        "local": true,
+        "printer": false
+      },
+      "enabled": true,
+      "hook": "(no hook: deliberately never self-schedules)",
+      "kit": null,
+      "max_per_hour": 30,
+      "min_claims": 1,
+      "name": "digest",
+      "paper": null,
+      "platforms": {
+        "allow": [],
+        "deny": []
+      },
+      "profiles": {
+        "allow": [],
+        "deny": []
+      },
+      "quiet_hours": null,
+      "stamp": false,
+      "theme": null,
+      "when": "always"
+    }
+  ]
+}

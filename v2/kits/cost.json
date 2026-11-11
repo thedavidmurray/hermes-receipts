@@ -1,0 +1,7 @@
+{
+  "name": "cost",
+  "schema_version": 2,
+  "description": "Spend kit: tokens in/out/total, estimated cost, tool calls, top tools, wall clock, model and provider.",
+  "sections": ["counts"],
+  "fields": ["task_session_id", "tokens_in", "tokens_out", "tokens_total", "cost", "tool_call_count", "top_tools", "duration", "model", "provider", "cost_scope"]
+}

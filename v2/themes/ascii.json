@@ -1,0 +1,18 @@
+{
+  "name": "ascii",
+  "schema_version": 2,
+  "description": "Pure ASCII terminal text: 7-bit glyphs only, no colour, no decoration. Safe for Discord code blocks, log files and plain printers; also renders a PNG.",
+  "frame": "#f2f2ee",
+  "paper": "#ffffff",
+  "ink": "#111111",
+  "ink_supported": "#111111",
+  "ink_contradicted": "#111111",
+  "ink_unverified": "#111111",
+  "ink_not_evaluable": "#111111",
+  "ink_muted": "#555555",
+  "mono": true,
+  "glyph_set": "ascii",
+  "font": "standard",
+  "perforation": "none",
+  "green_bar": false
+}
