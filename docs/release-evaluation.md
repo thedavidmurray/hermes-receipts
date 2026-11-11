@@ -41,6 +41,25 @@ An absent call stays unverified; a genuine failed outcome readback may contradic
 a criterion. Task completion never becomes supported until all required criteria
 are supported for the linked target/version/window.
 
+Two extra end-to-end checks were run by hand against the committed code (no
+network, no live profile, all temp roots under the caller's scratch):
+
+1. **CLI task path.** A manifest with `artifact_digest` + `remote_commit`
+   criteria was driven through the real `v2.cli.handle` entry point that the
+   plugin registers. Before the real `git push` into the disposable local bare
+   remote the PNG read `COMPLETION: UNVERIFIED` / `REQ 2 ... CONTRADICTED`;
+   after the push the same manifest read `COMPLETION: SUPPORTED` with every
+   criterion supported. Note the declared `artifact_version` is the shared
+   version for *every* criterion — a criterion binding a different version than
+   the claim correctly fails closed.
+2. **Fleet -> report path.** An opt-in `receipt fleet --roots <disposable home>`
+   scan over a synthetic two-profile `profiles/*/state.db` home imported 2
+   finals from 2 sources with the source DB bytes bit-identical before and after
+   (no source writes), and the follow-up `receipt report --group-by
+   profile,model,source,project_key` rendered a grouped statement with two
+   labelled groups, coverage 2/2 complete, `DONE ASSERTIONS` reported separately
+   from `ACTION CLAIMS`/`TASK COMPLETION` and the cost line only in the footer.
+
 `assets/integration/` contains output from an actual controlled run: before/after
 PNG, grouped statement, no-manifest PNG, browser screenshot and the <=90s replay.
 The replay uses real generated PNGs with synthetic fixture metadata, labels every
