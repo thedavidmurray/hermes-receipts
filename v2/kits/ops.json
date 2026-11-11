@@ -1,8 +1,7 @@
 {
   "name": "ops",
   "schema_version": 2,
-  "description": "Operations kit: tools, duration, files - for agent workflow tracking",
-  "required_fields": ["tool_call_count", "duration", "files_touched"],
-  "optional_fields": ["model", "profile"],
-  "fields": ["tool_call_count", "duration", "files_touched", "model", "profile"]
+  "description": "Operations kit: tool calls, top tools, wall clock, files touched, profile, agent, model and provider.",
+  "sections": ["counts"],
+  "fields": ["task_session_id", "profile", "agent", "model", "provider", "turns", "tool_call_count", "top_tools", "duration", "files_touched"]
 }

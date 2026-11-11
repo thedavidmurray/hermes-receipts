@@ -1,14 +1,18 @@
 {
   "name": "minimal-mono",
   "schema_version": 2,
-  "description": "Minimal monochrome: clean lines, single color, minimal decoration",
-  "foreground": "#e0e0e0",
-  "background": "#121212",
-  "ink_supported": "#ffffff",
-  "ink_contradicted": "#ffffff",
-  "ink_unverified": "#bbbbbb",
-  "ink_muted": "#666666",
-  "palette_invert": false,
-  "hide_unsupported": true,
-  "soften_contradicted": true
+  "description": "Single-ink monochrome: quiet paper, no colour; a contradicted verdict is inverted video so it can never be mistaken for a supported one.",
+  "frame": "#e8e8e4",
+  "paper": "#fbfbf9",
+  "ink": "#141414",
+  "ink_supported": "#141414",
+  "ink_contradicted": "#141414",
+  "ink_unverified": "#141414",
+  "ink_not_evaluable": "#141414",
+  "ink_muted": "#5c5c5c",
+  "mono": true,
+  "glyph_set": "unicode",
+  "font": "standard",
+  "perforation": "none",
+  "green_bar": false
 }

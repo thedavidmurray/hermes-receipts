@@ -118,7 +118,11 @@ def test_cli_task_actual_probe_and_no_manifest_forgery(tmp_path, capsys):
     artifact.unlink()
     assert plugin._cli_handler(args) == 0
     output = capsys.readouterr().out
-    assert 'COMPLETION: CONTRADICTED' not in output  # missing artifact cannot certify completion
+    # A missing artifact is an observed mismatch, and the 2026-11-10 review mandates the
+    # worst-required-verdict rule: the top line reads CONTRADICTED, never a green
+    # SUPPORTED completion while a required criterion failed.
+    assert 'COMPLETION: SUPPORTED' not in output
+    assert 'COMPLETION: CONTRADICTED \u2717' in output
     assert str(manifest) not in output and str(artifact) not in output
 
     # A real file read cannot certify a different declared digest/version.

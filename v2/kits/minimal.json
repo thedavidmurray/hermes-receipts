@@ -1,8 +1,7 @@
 {
   "name": "minimal",
   "schema_version": 2,
-  "description": "Verdict + task session ID only; everything else n/a",
-  "required_fields": ["verdict", "task_session_id"],
-  "optional_fields": [],
-  "fields": ["verdict", "task_session_id"]
+  "description": "Verdict plus one id. No counts, no evidence lines, no fine print; anything a chosen field cannot fill prints n/a.",
+  "sections": [],
+  "fields": ["task_session_id"]
 }

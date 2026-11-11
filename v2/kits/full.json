@@ -1,12 +1,11 @@
 {
   "name": "full",
   "schema_version": 2,
-  "description": "All available fields; n/a for any data that is missing",
-  "required_fields": ["verdict", "task_session_id", "claims_detected", "verdict_per_claim", "evidence_locators",
-                      "tokens_in", "tokens_out", "tokens_total", "cost", "tool_call_count", "top_tools",
-                      "duration", "model", "provider", "profile", "turns", "files_touched"],
-  "optional_fields": [],
-  "fields": ["verdict", "task_session_id", "claims_detected", "verdict_per_claim", "evidence_locators",
-             "tokens_in", "tokens_out", "tokens_total", "cost", "tool_call_count", "top_tools",
-             "duration", "model", "provider", "profile", "turns", "files_touched"]
+  "description": "Everything the receipt can print: verdict, criteria, counts, per-claim evidence and the full fine-print footer. Every field without data prints n/a.",
+  "sections": ["counts", "evidence"],
+  "fields": ["verdict", "task_session_id", "session", "profile", "agent", "model", "provider", "turns",
+             "tool_call_count", "top_tools", "tokens_in", "tokens_out", "tokens_total", "cost", "cost_scope",
+             "duration", "files_touched", "claims_detected", "verdict_per_claim", "evidence_locators",
+             "artifact_version", "detector_version", "matcher_version", "plugin_version", "git_sha",
+             "receipt_hash", "timestamp"]
 }

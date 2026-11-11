@@ -1,14 +1,18 @@
 {
   "name": "thermal-classic",
   "schema_version": 2,
-  "description": "Classic thermal paper look: dark background, green/red ink for verdicts, high contrast",
-  "foreground": "#d4d4d4",
-  "background": "#181818",
-  "ink_supported": "#00ff00",
-  "ink_contradicted": "#ff0000",
-  "ink_unverified": "#ffff00",
-  "ink_muted": "#888888",
-  "palette_invert": false,
-  "hide_unsupported": false,
-  "soften_contradicted": false
+  "description": "Classic thermal roll: off-white paper, dark ink, coloured verdicts, torn edge.",
+  "frame": "#272727",
+  "paper": "#f4efdf",
+  "ink": "#222620",
+  "ink_supported": "#127847",
+  "ink_contradicted": "#a73532",
+  "ink_unverified": "#7a5200",
+  "ink_not_evaluable": "#666557",
+  "ink_muted": "#666557",
+  "mono": false,
+  "glyph_set": "unicode",
+  "font": "standard",
+  "perforation": "torn",
+  "green_bar": false
 }

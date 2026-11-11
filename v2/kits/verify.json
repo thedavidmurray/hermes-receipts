@@ -1,8 +1,8 @@
 {
   "name": "verify",
   "schema_version": 2,
-  "description": "Default verification kit: claims, verdicts, evidence. Each claim kind switchable on/off.",
-  "required_fields": ["verdict", "claims_detected", "verdict_per_claim", "evidence_locators", "task_session_id"],
-  "optional_fields": ["tokens_in", "tokens_out", "tokens_total", "cost", "tool_call_count", "duration", "model", "provider", "files_touched", "profile", "turns"],
-  "fields": ["verdict", "claims_detected", "verdict_per_claim", "evidence_locators", "task_session_id"]
+  "description": "Default verification kit: the completion verdict, per-claim verdicts, the evidence checked for each claim, and the reason a claim is not supported.",
+  "sections": ["counts", "evidence"],
+  "fields": ["task_session_id", "claims_detected", "evidence_locators", "detector_version", "matcher_version", "receipt_hash"],
+  "experimental_kinds": ["tests_pass"]
 }

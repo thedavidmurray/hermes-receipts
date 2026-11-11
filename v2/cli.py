@@ -1,4 +1,17 @@
-"""Local v2 CLI registrations. No fleet root or private manifest accepted over HTTP."""
+"""Local v2 CLI registrations. No fleet root or private manifest accepted over HTTP.
+
+Config surfaces for content and aesthetics, all optional:
+
+``--kit``      a named kit (built-in or a user kit under the plugin config dir)
+``--fields``   an explicit field list, overriding the kit's field list
+``--sections`` the optional sections to print (``counts``, ``evidence``)
+``--theme``    a named visual theme
+``--metrics``  a JSON file of reviewed telemetry, or ``--from-state`` a Hermes
+               ``state.db`` read read-only
+
+The verdict block is not a config surface: it prints for every kit, every field
+list and every theme.
+"""
 from __future__ import annotations
 
 import json
@@ -7,8 +20,10 @@ from pathlib import Path
 
 from .detect import DETECTOR_VERSION, extract_claims
 from .evidence import MATCHER_VERSION, normalize_evidence, judge_claims, observe_artifact, observe_remote_commit
+from .fields import (KNOWN_FIELDS, OPTIONAL_SECTIONS, kit_descriptions, kit_names,
+                     metrics_from_state, sanitize_metrics, theme_descriptions, theme_names)
 from .fleet import iter_turns
-from .public import to_public_receipt, to_public_report
+from .public import to_public_receipt, to_public_report, verify_receipt_hash
 from .render import public_text, render_task_png, render_report_png
 from .store import upsert_run, query_coverage, query_rollup
 from .tasks import judge_task
@@ -21,14 +36,22 @@ def _time(value):
     return parsed.astimezone(timezone.utc).timestamp()
 
 
+def _add_style(parser):
+    parser.add_argument('--kit', help='field kit: ' + ', '.join(kit_names()))
+    parser.add_argument('--theme', help='visual theme: ' + ', '.join(theme_names()))
+    parser.add_argument('--fields', help='comma-separated field list; overrides --kit')
+    parser.add_argument('--sections', help='optional sections to print: ' + ', '.join(OPTIONAL_SECTIONS))
+    parser.add_argument('--metrics', help='JSON file of reviewed telemetry metrics')
+    parser.add_argument('--from-state', metavar='STATE_DB',
+                        help='read telemetry read-only from a Hermes state.db')
+    parser.add_argument('--session-id', help='session to read telemetry for with --from-state')
+
+
 def setup(sub):
     task = sub.add_parser('task', help='Scoped task receipt from an explicit local manifest')
     task.add_argument('--manifest', required=True)
     task.add_argument('--png', required=True)
-    task.add_argument('--kit', choices=['minimal', 'verify', 'cost', 'full', 'ops'],
-                      help='Field kit to control receipt fields')
-    task.add_argument('--theme', choices=['thermal-classic', 'minimal-mono', 'bold-branded'],
-                      help='Visual theme for receipt aesthetics')
+    _add_style(task)
     task.add_argument('--print-usb', nargs=2, metavar=('VENDOR_HEX', 'PRODUCT_HEX'))
     fleet = sub.add_parser('fleet', help='Explicit opt-in local-only fleet scan')
     fleet.add_argument('--roots', nargs='+', required=True)
@@ -42,10 +65,33 @@ def setup(sub):
     report.add_argument('--png', required=True)
     report.add_argument('--start', help='Optional UTC ISO8601 lower bound; defaults to stored finals minimum')
     report.add_argument('--end', help='Optional UTC ISO8601 upper bound; defaults to stored finals maximum + 1s')
-    report.add_argument('--kit', choices=['minimal', 'verify', 'cost', 'full', 'ops'],
-                      help='Field kit to control receipt fields')
-    report.add_argument('--theme', choices=['thermal-classic', 'minimal-mono', 'bold-branded'],
-                      help='Visual theme for receipt aesthetics')
+    _add_style(report)
+    sub.add_parser('options', help='List the available kits, themes and fields as JSON')
+
+
+def _style(args, manifest: dict) -> dict:
+    """Resolve kit/theme/fields/sections/metrics from flags, then the manifest."""
+    get = lambda name, default=None: getattr(args, name, default)  # noqa: E731 - tiny accessor
+    metrics = None
+    state_db = get('from_state') or manifest.get('from_state')
+    if state_db:
+        metrics = metrics_from_state(Path(state_db).expanduser(),
+                                     session_id=get('session_id') or manifest.get('session_id'),
+                                     turn_id=manifest.get('turn_id'))
+    else:
+        metrics_file = get('metrics') or manifest.get('metrics_file')
+        if metrics_file:
+            metrics = json.loads(Path(metrics_file).expanduser().read_text())
+    if metrics is None:
+        metrics = manifest.get('metrics') or {}
+    return {
+        'kit': get('kit') or manifest.get('kit'),
+        'theme': get('theme') or manifest.get('theme'),
+        'fields': get('fields') or manifest.get('fields'),
+        'sections': get('sections') or manifest.get('sections'),
+        'metrics': sanitize_metrics({**metrics, **(manifest.get('agent') and
+                                                  {'agent': manifest['agent']} or {})}),
+    }
 
 
 def _task(args):
@@ -76,16 +122,22 @@ def _task(args):
         else:
             raise ValueError('only explicit artifact digest and local bare-remote probes available in CLI; tests need trusted in-process runner')
     private = judge_task(manifest['requirements'], evidence, window, claim=claim, links=manifest.get('links'))
+    style = _style(args, manifest)
     # A caller-supplied manifest may include labels but can never bypass review.
-    public = to_public_receipt(private, manifest.get('reviewed_labels', {}),
-                              kit=manifest.get('kit'), theme=manifest.get('theme'))
-    output = render_task_png(public, args.png)
-    print(public_text(public))
+    public = to_public_receipt(private, manifest.get('reviewed_labels', {}), kit=style['kit'],
+                              theme=style['theme'], fields=style['fields'], metrics=style['metrics'],
+                              categories=manifest.get('categories') or manifest.get('auto_fields'))
+    output = render_task_png(public, args.png, kit=style['kit'], theme=style['theme'],
+                            sections=style['sections'])
+    print(public_text(public, kit=style['kit'], theme=style['theme'], sections=style['sections']))
+    print(f'Kit: {style["kit"] or "verify"}; theme: {style["theme"] or "thermal-classic"}; '
+          f'receipt hash {"verified" if verify_receipt_hash(public) else "MISMATCH"}.')
     print('Public PNG saved to requested local output.')
     if args.print_usb:
         from ..printer import print_receipt
         vendor, product = (int(value, 16) for value in args.print_usb)
-        ok, _ = print_receipt(public_text(public), vendor, product)
+        ok, _ = print_receipt(public_text(public, kit=style['kit'], theme=style['theme'],
+                                          sections=style['sections']), vendor, product)
         print('USB submission attempted; physical paper unverified without an observer.' if ok else
               'USB unavailable; saved public PNG remains the fallback (physical paper unverified).')
         return 0 if ok else 1
@@ -124,17 +176,27 @@ def _report(args):
     dimensions = args.group_by.split(',')
     groups = query_rollup(args.report_db, {'start': start, 'end': end,
         'detector_version': DETECTOR_VERSION, 'matcher_version': MATCHER_VERSION}, dimensions)
+    style = _style(args, {})
     public = to_public_report(groups, query_coverage(args.report_db), start=start, end=end,
-                                      group_by=dimensions, kit=args.kit, theme=args.theme)
-    output = render_report_png(public, args.png)
-    print(public_text(public))
+                              group_by=dimensions, kit=style['kit'], theme=style['theme'],
+                              metrics=style['metrics'])
+    render_report_png(public, args.png, kit=style['kit'], theme=style['theme'],
+                     sections=style['sections'])
+    print(public_text(public, kit=style['kit'], theme=style['theme'], sections=style['sections']))
     print('Public PNG saved to requested local output.')
+    return 0
+
+
+def _options(_args):
+    print(json.dumps({'kits': kit_descriptions(), 'themes': theme_descriptions(),
+                      'fields': list(KNOWN_FIELDS), 'optional_sections': list(OPTIONAL_SECTIONS)},
+                     indent=2, sort_keys=True))
     return 0
 
 
 def handle(args):
     try:
-        return {'task': _task, 'fleet': _fleet, 'report': _report}[args.receipt_action](args)
+        return {'task': _task, 'fleet': _fleet, 'report': _report, 'options': _options}[args.receipt_action](args)
     except (KeyError, TypeError, ValueError, OSError) as exc:
         # Do not echo private paths, raw manifest text, or underlying errors.
         print(f'Receipt unavailable: {type(exc).__name__}; check local inputs and permissions.')
