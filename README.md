@@ -230,10 +230,144 @@ minimal-mono and bold-branded for the full kit) and `contact-sheet.png`.
 `python3 scripts/render_kits.py` regenerates them from real local readbacks and a
 real session's telemetry.
 
+## When receipts print
+
+Receipts are **automatic**. `receipts.yaml` carries a `triggers:` block that says when
+a receipt prints by itself, what it looks like and where it goes, and an `include:`
+block that says what is *in* it. On-demand receipts (`/receipt`, `hermes receipt last`,
+the pane button) go through exactly the same settings, so there is one configuration
+to learn and one to trust.
+
+### Defaults
+
+A fresh install is quiet: every trigger writes the local PNG history, and **nothing is
+sent to chat** except the receipt you explicitly asked for. The only automatic chat
+output a default config can produce is `claim_check` on an unestablished claim.
+
+| Trigger | Real host hook | Default | `when` | Destinations | Notes |
+|---|---|---|---|---|---|
+| `on_demand` | *(the request is the trigger)* | **ON** | `always` | local + chat | `/receipt`, `hermes receipt last\|task\|triggers --on-demand`, pane button |
+| `task_complete` | `kanban_task_completed` | **ON** | `always` | local | the hero: the agent says done, here is the receipt |
+| `goal_complete` | `kanban_task_completed` + `on_session_end` | **ON** | `always` | local | *derived*: a `goal_mode` card, or the end of a `goal_mode` session |
+| `claim_check` | `transform_llm_output` / `post_llm_call` | **ON** | `exceptions_only` | local | a full receipt only when a claim is unverified or contradicted; the one-line stamp is off |
+| `unattended_session_end` | `on_session_end` | **ON** | `always` | local | *derived*: platform or session key says cron/scheduled |
+| `interactive_session_end` | `on_session_end` | OFF | `min_claims 1` | local | too noisy in a live chat; turn it on and an empty chat still prints nothing |
+| `subagent_stop` | `subagent_stop` | OFF | `always` | local | its claims roll up into the parent's receipt |
+| `task_blocked` | `kanban_task_blocked` | OFF | `always` | local | |
+| `digest` | *(none: never self-schedules)* | OFF | `always` | local | a fleet statement you schedule yourself, see below |
+
+**There is no goal-loop hook and no cron hook.** Both triggers are derived from real
+events, and the derivation is stated in the table above and printed by
+`hermes receipt triggers --show` (a `hook` and a `derived` field per trigger). A
+`goal_mode` column the host does not expose means *no* goal event — never a guess.
+
+### Configuring a trigger
+
+Every trigger takes the same keys; `triggers.defaults` is inherited by all of them.
+
+```yaml
+triggers:
+  defaults:                       # inherited unless the trigger overrides it
+    kit: verify                   # any kit: minimal | verify | cost | ops | full | auto
+    theme: thermal-classic        # any theme, built-in or yours
+    paper: 80mm                   # 58mm | 80mm | a4 | letter | discord | custom
+    cooldown: 0                   # seconds between two prints of this trigger
+    max_per_hour: 20
+    quiet_hours: "22:00-07:00"    # UTC; empty means never quiet
+    dedupe: true                  # one print per (session, version) — never twice
+    profiles: {allow: [], deny: []}     # profile allow/deny; deny wins
+    platforms: {allow: [], deny: []}    # platform allow/deny; deny wins
+    destinations: {local: true, chat: false, printer: false, file: null}
+  task_complete:
+    enabled: true
+    when: always                  # always | exceptions_only | "min_claims N"
+    destinations: {local: true, chat: true}
+  claim_check:
+    enabled: true
+    when: exceptions_only
+    stamp: false                  # the one-line claim stamp; off by default
+  on_demand:
+    destinations: {local: true, chat: true, printer: true, device: [0x04b8, 0x0202]}
+```
+
+* `when: always` prints every time the trigger fires. `when: exceptions_only` prints
+  only when a detected claim is unverified or contradicted. `when: "min_claims N"`
+  prints when the text declares at least `N` claims (also spelled
+  `when: {min_claims: N}` or `min_claims: N`).
+* **Destinations:** `local` is the PNG history store
+  (`~/.hermes/receipts/trigger-receipts`) and is on for every trigger. `chat` replies
+  in the origin chat — an ASCII code block on Discord, the PNG elsewhere. `printer` is
+  opt-in and **requires** `device: [vendor, product]`, so an automatic print can never
+  pick the wrong device. `file` exports the PNG to a path.
+* `hermes receipt triggers --show` prints every resolved setting as JSON; `--outbox`
+  prints chat deliveries a hook could not reply with inline.
+
+### The digest never self-schedules
+
+`digest` is off by default and observes no hook. Turning it on makes
+`hermes receipt triggers --cron` print the exact crontab line to install (it prints a
+commented line when the trigger is off, so an empty crontab is never a mystery). The
+plugin never writes a cron entry, never spawns a scheduler and never opens a socket.
+
+### What is in a receipt (`include:`)
+
+```yaml
+include:
+  claims: {tests: true, commit: true, push: true, send: true, deploy: true,
+           write: true, run: true}
+  experimental: {external: false, jev: false}   # both off by default
+  tools: {preset: actions_only, include: [], exclude: [read_file]}
+  redaction: public            # public | private (private is local PNG only)
+  show: {cost: true, tokens: true, model: true}
+  max_claims: 12
+  evidence: summary            # none | summary | full
+```
+
+* `claims` switches claim kinds off; a hidden claim still counts toward
+  `hidden_claims`, and the receipt says so.
+* `tools` filters what **TOP TOOLS** lists (`actions_only` hides read-only tools). The
+  **TOOL CALLS** count is never filtered: a receipt does not under-report work.
+* `redaction: private` keeps raw identifiers on the local PNG only; chat and printer
+  destinations are always rendered public.
+* `show` gates the cost, token and model fields; `evidence` picks how much of each
+  check prints.
+* **The verdict block is not an include setting.** No key can remove it, restyle it, or
+  make a hidden contradicted claim look supported — the completion verdict is
+  recomputed over *every* claim in the run, including the ones the settings hide. A key
+  that names a verdict is rejected by name.
+
+### Safety
+
+* Triggers run **off the hot path**: the hook callback starts a daemon thread and
+  returns (0.2–5 ms measured by `scripts/trigger_harness.py`), and any one trigger
+  stops where it stands after 2 seconds.
+* Everything **fails open**: a raising renderer, an unreadable state.db or a bad config
+  is logged and the turn continues. The harness injects a failure to prove it and
+  `tests/test_v2_triggers.py` asserts it.
+* Dedupe keys on `(session, version)`, so one event never prints twice; `cooldown`,
+  `max_per_hour` and `quiet_hours` are enforced per trigger.
+* No network calls: `local`, `chat`, `printer` (USB) and `file` are the only
+  destinations, and none of them is remote.
+
+### Proof
+
+`PYTHONPATH=~/.hermes/hermes-agent python3 scripts/trigger_harness.py` builds a
+disposable `HERMES_HOME`, registers the plugin's real hook callbacks and fires the
+host's own payload shapes. It writes `assets/triggers/`:
+
+* `task_complete.png` + `.txt` — SUPPORTED: all 285 tests pass, branch pushed;
+* `unattended_session_end.png` + `.txt` — the cron session's own receipt;
+* `claim_check_caught.png` + `.txt` — CONTRADICTED: an unbacked "deployed to
+  production" claim is exactly what prints a receipt;
+* `rendered.json` — the decision, the delivery and the PNG hash for every case.
+
+A fully backed answer (`claim_check_clean`) prints nothing at all, which the harness
+asserts.
+
 ## Local verification
 
 ```bash
-PYTHONPATH=/path/to/hermes-agent python3 -m pytest -q --import-mode=importlib tests/test_receipts.py
+PYTHONPATH=/path/to/hermes-agent python3 -m pytest -q --import-mode=importlib tests/
 HERMES_HOME=/path/to/disposable-home hermes plugins validate . --install-deps
 HERMES_HOME=/path/to/disposable-home hermes plugins doctor . --ci
 ```

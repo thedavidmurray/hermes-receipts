@@ -77,11 +77,19 @@ def test_read_only_backfill_and_png(historical_db, tmp_path):
 
 def test_gateway_slash_media_is_deliverable(historical_db, monkeypatch):
     from gateway.platforms.base import BasePlatformAdapter
+    from receipts_test_package.v2 import fields
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
+    monkeypatch.setenv('HERMES_RECEIPTS_CONFIG_DIR', str(historical_db.parent / 'cfg'))
+    fields.reload()
     reply = plugin._slash('8')
     media, cleaned = BasePlatformAdapter.extract_media(reply)
     assert len(media) == 1 and Path(media[0][0]).is_file()
-    assert media[0][0].endswith('.png') and 'VERIFIED    1 / 1' in cleaned
+    # `/receipt` now renders through the on_demand trigger, so the reply is the same
+    # public receipt the printer prints: the media contract holds, and the verdict
+    # line is the one immutable line every receipt carries.
+    assert media[0][0].endswith('.png')
+    assert 'COMPLETION: SUPPORTED \u2713' in cleaned
+    assert 'tests pass' in cleaned and 'CLAIMS DETECTED' in cleaned
     assert 'MEDIA:' not in cleaned
 
 

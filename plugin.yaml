@@ -6,5 +6,11 @@ provides_hooks:
   - post_tool_call
   - transform_llm_output
   - pre_tool_call
+  - post_llm_call
+  - kanban_task_completed
+  - kanban_task_blocked
+  - on_session_end
+  - subagent_stop
+  - agent_loop_stopped
 python_dependencies:
   - "Pillow>=10.0,<13"

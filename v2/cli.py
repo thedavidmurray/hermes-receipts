@@ -29,6 +29,7 @@ from .public import to_public_receipt, to_public_report, verify_receipt_hash
 from .render import public_text, render_task_png, render_report_png
 from .store import upsert_run, query_coverage, query_rollup
 from .tasks import judge_task
+from .triggers import cron_line, load_trigger_config, on_demand, read_outbox, state_path
 
 
 def _time(value):
@@ -76,6 +77,25 @@ def setup(sub):
     report.add_argument('--end', help='Optional UTC ISO8601 upper bound; defaults to stored finals maximum + 1s')
     _add_style(report)
     sub.add_parser('options', help='List the available kits, themes and fields as JSON')
+    triggers = sub.add_parser('triggers', help='Automatic triggers: defaults, cron line, outbox')
+    triggers.set_defaults(receipt_triggers_action='show')
+    triggers.add_argument('--show', dest='receipt_triggers_action', action='store_const',
+                          const='show',
+                          help='Print every trigger\'s resolved settings as JSON (the default)')
+    triggers.add_argument('--cron', dest='receipt_triggers_action', action='store_const',
+                          const='cron',
+                          help='Print the crontab line for the digest trigger (it never self-schedules)')
+    triggers.add_argument('--outbox', dest='receipt_triggers_action', action='store_const',
+                          const='outbox',
+                          help='Print chat deliveries that a hook could not reply with inline')
+    triggers.add_argument('--on-demand', dest='receipt_triggers_action', action='store_const',
+                          const='request',
+                          help='Render the on_demand receipt now, exactly as /receipt does')
+    triggers.add_argument('--png', help='With --on-demand: save the PNG to this path')
+    triggers.add_argument('--config', metavar='RECEIPTS_YAML',
+                          help='printer config file; defaults to ' + CONFIG_FILENAME +
+                               ' in the plugin config dir when one exists')
+    triggers.add_argument('--session-id', help='With --on-demand: read telemetry for this session')
     config = sub.add_parser('config', help='Write or validate the printer config file')
     config.set_defaults(receipt_config_action='show', path=None)
     config.add_argument('--init', dest='receipt_config_action', action='store_const', const='init',
@@ -245,8 +265,41 @@ def _config(args):
         'extra_fields': [f.key for f in config.extra_fields],
         'logo': bool(config.logo), 'barcode': config.barcode,
         'printer': dict(config.printer),
+        'triggers': config.triggers.table(),
+        'include': config.include.describe(),
     }
     print(json.dumps(resolved, indent=2, sort_keys=True))
+    return 0
+
+
+def _triggers(args):
+    config, include = load_trigger_config(getattr(args, 'config', None))
+    if args.receipt_triggers_action == 'cron':
+        print(cron_line(config))
+        return 0
+    if args.receipt_triggers_action == 'outbox':
+        rows = read_outbox()
+        print(json.dumps(rows, indent=2, sort_keys=True))
+        return 0
+    if args.receipt_triggers_action == 'request':
+        result = on_demand(getattr(args, 'session_id', None), platform='cli')
+        if result is None:
+            print('on_demand: no receipt rendered (the trigger is disabled, in quiet hours, '
+                  'or the session has no persisted turn).')
+            return 1
+        png = getattr(args, 'png', None)
+        if png and result.get('png'):
+            target = Path(png).expanduser()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(Path(result['png']).read_bytes())
+            result = {**result, 'png': str(target)}
+        print(result['text'])
+        print(f"on_demand: {result['claims']} claim(s); PNG: {result.get('png')}")
+        return 0
+    print(json.dumps({'source': config.source, 'state_file': str(state_path()),
+                      'unattended_platforms': list(config.unattended_platforms),
+                      'triggers': config.table(), 'include': include.describe()},
+                     indent=2, sort_keys=True))
     return 0
 
 
@@ -260,7 +313,7 @@ def _options(_args):
 def handle(args):
     try:
         return {'task': _task, 'fleet': _fleet, 'report': _report, 'options': _options,
-                'config': _config}[args.receipt_action](args)
+                'config': _config, 'triggers': _triggers}[args.receipt_action](args)
     except (KeyError, TypeError, ValueError, OSError) as exc:
         # Do not echo private paths, raw manifest text, or underlying errors.
         print(f'Receipt unavailable: {type(exc).__name__}; check local inputs and permissions.')

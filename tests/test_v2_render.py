@@ -142,7 +142,12 @@ def test_completion_intercept_is_registered_but_opt_in():
         def register_cli_command(self, *args, **kwargs): pass
     ctx = Context()
     plugin.register(ctx)
-    assert ctx.hooks == ['post_tool_call', 'transform_llm_output', 'pre_tool_call']
+    # The intercept stays opt-in (env-gated) *and* the automatic triggers register
+    # their real host hooks alongside it.
+    assert ctx.hooks[:3] == ['post_tool_call', 'transform_llm_output', 'pre_tool_call']
+    assert set(ctx.hooks[3:]) == {'transform_llm_output', 'post_llm_call',
+                                  'kanban_task_completed', 'kanban_task_blocked',
+                                  'on_session_end', 'subagent_stop', 'agent_loop_stopped'}
 
 
 def test_v2_usb_uses_exact_public_text_and_reports_fallback(tmp_path, monkeypatch, capsys):

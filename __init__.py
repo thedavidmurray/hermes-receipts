@@ -57,11 +57,22 @@ def _image(receipt):
 
 
 def _slash(raw_args, session_id='', **kwargs):
+    arg = raw_args.strip()
+    if arg and not arg.isdigit():
+        return 'Usage: /receipt [final message id]'
+    turn_id = int(arg) if arg else None  # latest profile turn by default
     try:
-        arg = raw_args.strip()
-        if arg and not arg.isdigit():
-            return 'Usage: /receipt [final message id]'
-        receipt = _receipt(turn_id=int(arg) if arg else None)  # latest profile turn by default
+        # An on-demand receipt goes through the trigger engine, so `triggers.on_demand`
+        # and `include:` govern a requested receipt exactly as they govern an automatic
+        # one. The legacy renderer stays as the fallback when nothing can be read.
+        from .v2.triggers import on_demand
+        result = on_demand(session_id or None, turn_id)
+        if result is not None and result.get('png'):
+            return f"{result['text']}\nMEDIA:{result['png']}"
+    except Exception:
+        LOG.exception('on-demand receipt failed; falling back to the legacy renderer')
+    try:
+        receipt = _receipt(turn_id=turn_id)
         path = _image(receipt)
         return f"{render_text(receipt)}\nMEDIA:{path}"
     except (OSError, ValueError) as exc:
@@ -82,7 +93,7 @@ def _cli_setup(parser):
 
 
 def _cli_handler(args):
-    if args.receipt_action in ('task', 'fleet', 'report', 'config', 'options'):
+    if args.receipt_action in ('task', 'fleet', 'report', 'config', 'options', 'triggers'):
         from .v2.cli import handle
         return handle(args)
     try:
@@ -145,9 +156,26 @@ def _gate(tool_name='', args=None, session_id='', **kwargs):
     return None
 
 
+def _trigger_hook(name):
+    """One registered hook per trigger surface. Every handler fails open by design."""
+
+    def handler(**kwargs):
+        from .v2 import triggers
+        return triggers.fire(name, **kwargs)
+
+    handler.__name__ = f'receipts_{name.replace("-", "_")}_trigger'
+    return handler
+
+
 def register(ctx):
     ctx.register_hook('post_tool_call', _post_tool_call)
     ctx.register_hook('transform_llm_output', _stamp)
     ctx.register_hook('pre_tool_call', _gate)
+    # Automatic triggers. The host fires these; `v2.triggers` decides what prints,
+    # where it goes, and never blocks the turn (see v2/triggers.py).
+    for hook in ('transform_llm_output', 'post_llm_call', 'kanban_task_completed',
+                 'kanban_task_blocked', 'on_session_end', 'subagent_stop',
+                 'agent_loop_stopped'):
+        ctx.register_hook(hook, _trigger_hook(hook))
     ctx.register_command('receipt', _slash, description='Print an evidence receipt for an agent turn', args_hint='[final message id]')
     ctx.register_cli_command('receipt', 'Show and verify Hermes turn receipts', _cli_setup, _cli_handler)

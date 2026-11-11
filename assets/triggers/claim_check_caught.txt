@@ -1,0 +1,40 @@
+HERMES / RECEIPTS
+A claim did not check out. Get the receipt.
+GET THE RECEIPT
+--------------------------------------
+COMPLETION: CONTRADICTED [X]
+DECLARED CLAIMS
+SUPPORTED [OK]: 1
+CONTRADICTED [X]: 1
+UNVERIFIED [?]: 0
+NOT EVALUABLE [-]: 0
+--------------------------------------
+REQUIRED CRITERIA
+REQ 1: Deployed to production and all 285 tests
+pass. (experimental)
+  SUPPORTED [OK]
+REQ 2: Deployed to production and all 285 tests
+pass.
+  CONTRADICTED [X]
+--------------------------------------
+EVIDENCE CHECKED
+1. checked: a recorded test run in this turn
+2. checked: the deploy command this turn ran
+2. not supported: no matching tool call
+   observed
+--------------------------------------
+FINE PRINT
+TASK/SESSION ID: sha256-965213e62757
+CLAIMS DETECTED: 2 declared
+DETECTOR: deterministic-2.0
+MATCHER: deterministic-2.0
+RECEIPT HASH: sha256-237152ab5ab2ef3482126f6ca
+  5d99e45e136d042a47fdb9fa3d2e9dc206f596c
+--------------------------------------
+VERSION: sha256-3babe7a2788c
+WINDOW UTC: 2026-11-11 UTC to 2026-11-11 UTC
+VERIFY: sha256-237152ab5ab2
+Declared claims were not established in this
+window; missing evidence is not a lie.
+Experimental viewer; evidence scope and coverage
+are limited.

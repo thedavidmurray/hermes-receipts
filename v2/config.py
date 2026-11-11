@@ -23,6 +23,14 @@ config dir (:func:`v2.fields.config_dir`, ``~/.hermes/receipts`` by default) cov
     barcode over the receipt-hash prefix or a verify URL.
 ``printer``
     USB options: cut, feed lines, density, copies.
+``triggers``
+    when receipts print by themselves (task completion, goal loops, session ends,
+    claim exceptions, a digest) and where each one goes. Defaults are quiet: a fresh
+    install writes the local PNG history and says nothing in chat.
+``include``
+    what a receipt contains: claim kinds, experimental flags, which tools are listed,
+    the redaction level, the claim cap, and whether cost/tokens/model print. It can
+    hide detail; it can never move the verdict block.
 
 Every validation failure names the key that is wrong, e.g.::
 
@@ -42,6 +50,9 @@ from typing import Any, Iterable, Mapping, Sequence
 from .fields import (FIELDS_BY_NAME, KNOWN_FIELDS, METRIC_KEYS, NUMBER_METRICS, KitError,
                      ThemeError, VERDICT_GLYPHS, VERDICT_WORDS, config_dir, kit_names,
                      theme_names, validate_fields)
+from .include import (DEFAULT_INCLUDE, EXAMPLE_INCLUDE, IncludeConfig, IncludeError, parse_include)
+from .triggers import (DEFAULT_TRIGGER_CONFIG, EXAMPLE_TRIGGERS, TriggerConfig, TriggerError,
+                       parse_triggers)
 
 #: The file the user edits, and the JSON fallback when PyYAML is unavailable.
 CONFIG_FILENAME = 'receipts.yaml'
@@ -422,6 +433,8 @@ class ReceiptConfig:
     barcode: str = 'none'
     barcode_url: str | None = None
     printer: Mapping[str, Any] = dataclass_field(default_factory=dict)
+    triggers: TriggerConfig = DEFAULT_TRIGGER_CONFIG
+    include: IncludeConfig = DEFAULT_INCLUDE
     source: str | None = None
 
     # -- geometry ----------------------------------------------------------
@@ -490,7 +503,8 @@ def parse_config(raw: Mapping, source: str = CONFIG_FILENAME,
     """
     mapping = _as_mapping(raw, source, CONFIG_FILENAME)
     known = {'schema_version', 'kit', 'theme', 'fields', 'paper', 'columns', 'sections', 'order',
-             'header', 'footer', 'extra_fields', 'logo', 'barcode', 'barcode_url', 'printer'}
+             'header', 'footer', 'extra_fields', 'logo', 'barcode', 'barcode_url', 'printer',
+             'triggers', 'include'}
     unknown = sorted(set(mapping) - known)
     if unknown:
         raise _fail(source, unknown[0], f'unknown key (known: {", ".join(sorted(known))})')
@@ -530,12 +544,21 @@ def parse_config(raw: Mapping, source: str = CONFIG_FILENAME,
     if duplicates:
         raise _fail(source, 'extra_fields', f'duplicate field key(s): {", ".join(duplicates)}')
     logo, barcode, barcode_url = _parse_branding(mapping, source, base_dir)
+    # One config file, one error type: a bad `triggers:`/`include:` key is reported as
+    # a ConfigError naming the same key, so `hermes receipt config --show` and the
+    # loader tell the user the same thing.
+    try:
+        triggers = parse_triggers(mapping.get('triggers'), source)
+        include = parse_include(mapping.get('include'), source)
+    except (TriggerError, IncludeError) as exc:
+        raise ConfigError(str(exc)) from exc
     return ReceiptConfig(
         kit=kit, theme=theme, fields=fields, paper=paper, columns=int(columns),
         sections=sections, order=order, header=_parse_header(mapping.get('header'), source),
         footer=_parse_footer(mapping.get('footer'), source), extra_fields=extra_fields,
         logo=logo, barcode=barcode, barcode_url=barcode_url,
-        printer=_parse_printer(mapping.get('printer'), source), source=source)
+        printer=_parse_printer(mapping.get('printer'), source), triggers=triggers,
+        include=include, source=source)
 
 
 def config_file() -> Path:
@@ -650,7 +673,7 @@ schema_version: 2
 #   feed_lines: 3
 #   density: 8        # 0..15, ESC/POS DC2 #
 #   copies: 1
-'''
+''' + '\n' + EXAMPLE_TRIGGERS + '\n' + EXAMPLE_INCLUDE
 
 
 def init_config(path: str | Path | None = None, *, force: bool = False) -> Path:
