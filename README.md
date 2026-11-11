@@ -161,17 +161,62 @@ plain printers; also renders a PNG) and `dot-matrix` (dotted 9-pin glyphs,
 tractor-feed perforations, green bars). Themes also apply to the pane and to
 `--print-usb`, where the ASCII glyph set is used for `ascii`/`dot-matrix`.
 
-A theme chooses paper, ink, glyph set, font and paper furniture. It **cannot**
-hide, soften, rename or restyle a verdict: a theme file carrying any `hide_*`,
-`soften_*`, `suppress_*`, `mute_*`, `verdict_*` or `glyph*` key is rejected on
-load, non-monochrome themes must give every verdict its own ink, and every verdict
-ink must reach a 4.5:1 contrast ratio against its own paper. Monochrome themes may
-declare one ink only — a mono theme cannot smuggle a green in for `supported`.
+A theme chooses paper, ink, glyph set, font, typography (`font_size`,
+`line_spacing`) and paper furniture (`edge_style`: `torn`, `perforated`,
+`tractor-feed` or `none`). Drop your own theme JSON into the config dir's `themes/`
+to select it with `--theme` after a reload. It **cannot** hide, soften, rename or
+restyle a verdict: a theme file carrying any `hide_*`, `soften_*`, `suppress_*`,
+`mute_*`, `verdict_*` or `glyph*` key is rejected on load, an unknown key is named
+rather than ignored, non-monochrome themes must give every verdict its own ink, and
+every verdict ink must reach a 4.5:1 contrast ratio against its own paper.
+Monochrome themes may declare one ink only — a mono theme cannot smuggle a green in
+for `supported`.
+
+### Customize your printer
+
+Treat a receipt like a real receipt printer you configure. One documented
+`receipts.yaml` in the plugin config dir (`~/.hermes/receipts`, or
+`HERMES_RECEIPTS_CONFIG_DIR`) covers paper, look, section order, shop branding,
+your own fine-print fields and the USB printer options:
+
+```bash
+hermes receipt config --init    # write a commented example (refuses to overwrite)
+hermes receipt config --show    # validate it and print the resolved values
+hermes receipt task --manifest /local/task.json --png /local/task.png   # uses it automatically
+```
+
+Every key is optional and validated on load; a bad key is reported **by name**, e.g.
+`receipts.yaml: paper: unknown paper preset '99mm' (known: 58mm, 80mm, a4, letter,
+discord, roll, custom)`. `--paper`/`--columns`, `--kit`, `--theme` and `--fields` on
+the command line override the file; the file overrides the manifest.
+
+| Key | What it configures |
+| --- | --- |
+| `kit`, `theme`, `fields` | content and look, exactly like the CLI flags |
+| `paper`, `columns` | `58mm` (32 cols), `80mm` (48), `a4`, `letter`, `discord`, `roll`, or `custom` + a column count; wrapping, truncation and the PNG geometry all follow it |
+| `sections`, `order` | which sections print and in what order; `verdict` and `criteria` are mandatory and `order` must list every section that prints, so nothing is dropped silently |
+| `header`, `footer` | shop name, tagline and "thank you" line |
+| `extra_fields` | your own fine-print lines: `template` over declared session data (`"{tokens_total:,.0f} tok / ${cost_usd:.4f}"`) or a static `value`; a field with no data prints `n/a` |
+| `logo`, `barcode` | a logo dithered to 1-bit (Floyd–Steinberg) for thermal/dot-matrix heads, and a Code 128 barcode over the receipt hash or a verify URL; `qr` is offered only when a pure-Python QR provider (`qrcode`/`segno`) is already installed, otherwise validation rejects it with that reason |
+| `printer` | USB options: `cut`, `feed_lines`, `density` (ESC/POS `DC2 '#'`, 0–15) and `copies` |
+
+One invariant survives all of it: **the verdict block is not configurable.** A config
+cannot switch `verdict`/`criteria` off, drop them from `order`, relabel a verdict, or
+print a verdict word or glyph in a header/footer/user field — all of those are
+refused by name. `logo` and `barcode` are drawn in pixels only.
+
+Samples: `assets/custom/` holds the "custom shop" example — `receipts.yaml`, its
+`logo.png`, `shop-58mm-dot-matrix.png`, `shop-80mm-thermal.png` and the resolved
+`rendered.json`. `PYTHONPATH=/path/to/hermes-agent python3
+scripts/render_custom_shop.py --state-db ~/.hermes/profiles/kilo/state.db`
+regenerates both PNGs from a real session's telemetry (profile/agent/session are
+pseudonymised before they reach the paper).
 
 ### Config surfaces
 
 * CLI: `--kit`, `--fields a,b,c`, `--sections counts,evidence`, `--theme`,
-  `--metrics FILE`, `--from-state STATE_DB`, and `hermes receipt options`.
+  `--metrics FILE`, `--from-state STATE_DB`, `--config FILE`, `--paper`, `--columns`,
+  `hermes receipt options`, and `hermes receipt config --init|--show`.
 * Manifest: the same keys (`kit`, `theme`, `fields`, `sections`, `metrics`,
   `categories`, `agent`, `from_state`, `session_id`), so one manifest can pin its
   own presentation.

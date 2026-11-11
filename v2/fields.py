@@ -84,6 +84,10 @@ THEME_FORBIDDEN_KEYS = frozenset({
     'verdict_opacity', 'mute_verdict', 'mute_verdicts', 'verdict_glyphs', 'glyphs',
     'glyph_overrides', 'verdict_words', 'relabel_verdicts',
 })
+#: Any key whose *name* starts with one of these is rejected too, so a theme cannot
+#: smuggle in `hide_evidence_verdict`, `remap_supported_to_warning`, and friends.
+THEME_FORBIDDEN_PREFIXES = ('hide', 'soften', 'suppress', 'mute', 'verdict', 'glyph',
+                            'relabel', 'rename', 'remap')
 #: Minimum WCAG contrast ratio for verdict ink against its own paper.
 MIN_VERDICT_CONTRAST = 4.5
 #: Default kit when the caller selects none.
@@ -91,7 +95,14 @@ DEFAULT_KIT = 'verify'
 #: Glyph sets, fonts and paper furniture a theme may choose from.
 GLYPH_SETS = ('unicode', 'ascii')
 FONTS = ('standard', 'dot')
-PERFORATIONS = ('torn', 'tractor', 'none')
+PERFORATIONS = ('torn', 'perforated', 'tractor', 'none')
+#: Edge-style vocabulary: the printer words and the long-standing theme word.
+EDGE_STYLES = {'torn': 'torn', 'perforated': 'perforated', 'perforation': 'perforated',
+               'tractor': 'tractor', 'tractor-feed': 'tractor', 'tractor_feed': 'tractor',
+               'none': 'none', 'clean': 'none', 'plain': 'none'}
+#: Editable typography bounds: one step larger than the default still fits the roll.
+MIN_FONT_SIZE, MAX_FONT_SIZE = 12, 36
+MIN_LINE_SPACING, MAX_LINE_SPACING = 0.75, 2.0
 
 #: Text-valued metric keys (all other accepted metrics are non-negative numbers).
 TEXT_METRICS = ('model', 'provider', 'profile', 'session', 'agent', 'cost_scope')
@@ -489,7 +500,27 @@ _FALLBACK_THEME = {
     'ink_supported': '#127847', 'ink_contradicted': '#a73532', 'ink_unverified': '#8a6d1a',
     'ink_not_evaluable': '#666557', 'ink_muted': '#666557', 'mono': False,
     'glyph_set': 'unicode', 'font': 'standard', 'perforation': 'torn', 'green_bar': False,
+    'font_size': 18, 'line_spacing': 1.0,
 }
+
+#: Legitimate keys that merely start with a forbidden prefix (`glyph_set` chooses the
+#: 7-bit or unicode glyph table; the verdict->glyph *mapping* stays in code).
+THEME_PREFIX_EXEMPTIONS = frozenset({'glyph_set'})
+#: Every key a theme file may carry. `perforation` and `edge_style` are the same thing.
+THEME_KEYS = frozenset({
+    'name', 'schema_version', 'description', 'frame', 'paper', 'ink', 'ink_muted',
+    'ink_supported', 'ink_contradicted', 'ink_unverified', 'ink_not_evaluable', 'mono',
+    'glyph_set', 'font', 'perforation', 'edge_style', 'green_bar', 'brand_text',
+    'font_size', 'line_spacing',
+})
+
+
+def _forbidden_theme_keys(raw: Mapping) -> list[str]:
+    """Theme keys that exist only to hide, soften or relabel a verdict."""
+    return sorted({str(key) for key in raw
+                   if str(key) not in THEME_PREFIX_EXEMPTIONS
+                   and (str(key) in THEME_FORBIDDEN_KEYS
+                        or str(key).strip().lower().startswith(THEME_FORBIDDEN_PREFIXES))})
 
 
 def load_theme(name: str | None = None) -> dict:
@@ -506,10 +537,15 @@ def load_theme(name: str | None = None) -> dict:
         raise ThemeError(f'unknown receipt theme: {name} (available: {", ".join(theme_names())})')
     if not isinstance(raw, Mapping):
         raise ThemeError(f'theme {name!r} must be an object')
-    forbidden = sorted(set(raw) & THEME_FORBIDDEN_KEYS)
+    forbidden = _forbidden_theme_keys(raw)
     if forbidden:
         raise ThemeError(f'theme {name!r} may not set {", ".join(forbidden)}: '
                          'a theme can never hide or soften a verdict')
+    unknown = sorted({str(key) for key in raw} - THEME_KEYS)
+    if unknown:
+        # A typo (`paper_colour`) must not silently do nothing: name the bad key.
+        raise ThemeError(f'theme {name!r} sets unknown key(s) {", ".join(unknown)} '
+                         f'(known: {", ".join(sorted(THEME_KEYS))})')
     theme = dict(_FALLBACK_THEME)
     theme['name'] = name
     for key in ('frame', 'paper', 'ink', 'ink_muted', 'ink_supported', 'ink_contradicted',
@@ -533,10 +569,26 @@ def load_theme(name: str | None = None) -> dict:
     if font not in FONTS:
         raise ThemeError(f'theme {name!r} font must be one of {", ".join(FONTS)}')
     theme['font'] = font
-    perforation = raw.get('perforation', 'torn')
-    if perforation not in PERFORATIONS:
-        raise ThemeError(f'theme {name!r} perforation must be one of {", ".join(PERFORATIONS)}')
-    theme['perforation'] = perforation
+    # Edge style: the printer vocabulary (torn/perforated/tractor-feed/none) or the
+    # long-standing theme key. Same object, two names for the same paper furniture.
+    edge = raw.get('edge_style', raw.get('perforation', 'torn'))
+    if not isinstance(edge, str) or edge.strip().lower() not in EDGE_STYLES:
+        raise ThemeError(f'theme {name!r} edge style must be one of {", ".join(PERFORATIONS)}')
+    theme['perforation'] = EDGE_STYLES[edge.strip().lower()]
+    # Typography a user may tune: size and line spacing, bounded so the paper still holds.
+    font_size = raw.get('font_size', theme['font_size'])
+    if (isinstance(font_size, bool) or not isinstance(font_size, (int, float))
+            or not math.isfinite(font_size) or not MIN_FONT_SIZE <= font_size <= MAX_FONT_SIZE):
+        raise ThemeError(f'theme {name!r} key "font_size" must be a number between '
+                         f'{MIN_FONT_SIZE} and {MAX_FONT_SIZE}')
+    theme['font_size'] = int(round(font_size))
+    line_spacing = raw.get('line_spacing', theme['line_spacing'])
+    if (isinstance(line_spacing, bool) or not isinstance(line_spacing, (int, float))
+            or not math.isfinite(line_spacing)
+            or not MIN_LINE_SPACING <= line_spacing <= MAX_LINE_SPACING):
+        raise ThemeError(f'theme {name!r} key "line_spacing" must be a number between '
+                         f'{MIN_LINE_SPACING} and {MAX_LINE_SPACING}')
+    theme['line_spacing'] = float(line_spacing)
     green_bar = raw.get('green_bar', False)
     if not isinstance(green_bar, bool):
         raise ThemeError(f'theme {name!r} key "green_bar" must be a boolean')

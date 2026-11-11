@@ -82,7 +82,7 @@ def _cli_setup(parser):
 
 
 def _cli_handler(args):
-    if args.receipt_action in ('task', 'fleet', 'report'):
+    if args.receipt_action in ('task', 'fleet', 'report', 'config', 'options'):
         from .v2.cli import handle
         return handle(args)
     try:

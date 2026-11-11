@@ -1,0 +1,74 @@
+{
+  "completion": "supported",
+  "config": {
+    "barcode": "hash",
+    "columns": 32,
+    "extra_fields": [
+      "session_spend",
+      "terms"
+    ],
+    "footer": {
+      "thanks": "THANK YOU FOR YOUR PATRONAGE"
+    },
+    "header": {
+      "shop_name": "MURRAY & SONS AUTOMATION",
+      "tagline": "agent work, itemised"
+    },
+    "kit": "full",
+    "logo": "assets/custom/logo.png",
+    "paper": "58mm",
+    "printer": {
+      "copies": 1,
+      "cut": true,
+      "density": 8,
+      "feed_lines": 3
+    },
+    "theme": "dot-matrix"
+  },
+  "config_file": "assets/custom/receipts.yaml",
+  "pngs": {
+    "shop-58mm-dot-matrix.png": "926c90b2ee012dfa",
+    "shop-80mm-thermal.png": "c100ec896d227b40"
+  },
+  "public_metrics": {
+    "agent": "sha256-54c5ccf0f305",
+    "cost_scope": "session totals (not per turn)",
+    "cost_usd": 0.06798062,
+    "duration_seconds": 941.9,
+    "files_touched": 8,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "profile": "sha256-54c5ccf0f305",
+    "provider": "custom:runtime-nous",
+    "session": "sha256-4f78700190b6",
+    "tokens_in": 121411,
+    "tokens_out": 51598,
+    "tokens_total": 173009,
+    "tool_calls": 96,
+    "top_tools": [
+      [
+        "terminal",
+        42
+      ],
+      [
+        "patch",
+        38
+      ],
+      [
+        "read_file",
+        12
+      ],
+      [
+        "write_file",
+        3
+      ],
+      [
+        "vision_analyze",
+        1
+      ]
+    ],
+    "turns": 67
+  },
+  "receipt_hash": "sha256-4110d6fbdd67c82bdaf5620ee26a61bdd052b7db3b7552a52b51be8e6cf7eb15",
+  "source_artifact": "v2/config.py",
+  "source_state_db": "/Users/djm/.hermes/profiles/kilo/state.db"
+}

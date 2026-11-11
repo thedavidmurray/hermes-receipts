@@ -1,0 +1,41 @@
+# Hermes receipts - printer configuration for "Murray & Sons Automation".
+# One file, validated on load: every bad key is reported by name.
+# The verdict block (COMPLETION + per-criterion verdict + glyph and colour) is not
+# configurable and always prints, whatever this file says.
+
+schema_version: 2
+
+# -- content ---------------------------------------------------------------
+kit: full                     # every run fact the session has, n/a when it has none
+theme: dot-matrix             # 9-pin look; the five built-ins, or your own theme JSON
+
+# -- paper -----------------------------------------------------------------
+paper: 58mm                   # 32 columns. Also: 80mm (48), a4, letter, discord, roll
+
+# -- your shop -------------------------------------------------------------
+header:
+  shop_name: "MURRAY & SONS AUTOMATION"
+  tagline: "agent work, itemised"
+footer:
+  thanks: "THANK YOU FOR YOUR PATRONAGE"
+
+# -- your own fine-print fields -------------------------------------------
+# A template reads declared session data; a field with no data prints n/a.
+extra_fields:
+  - key: session_spend
+    label: SESSION SPEND
+    template: "{tokens_total:,.0f} tok / ${cost_usd:.4f} est."
+  - key: terms
+    label: TERMS
+    value: "Agent promises are not proof. Evidence is."
+
+# -- branding --------------------------------------------------------------
+logo: logo.png                 # relative paths are read from this file's directory
+barcode: hash                  # Code 128 over the receipt hash; url/qr also available
+
+# -- USB printer -----------------------------------------------------------
+printer:
+  cut: true
+  feed_lines: 3
+  density: 8                   # 0 (lightest) .. 15 (darkest), ESC/POS DC2 '#'
+  copies: 1
