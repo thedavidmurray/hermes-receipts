@@ -2,6 +2,11 @@
 
 PYTHONPATH=/path/to/hermes-agent /path/to/hermes-python scripts/release_gates.py
 Uses the current interpreter and installed Hermes modules. No install or network.
+
+The interpreter must be one where the compiled Hermes modules (`hermes_state_wal`,
+`hermes_dir_acl`) import and the suite is otherwise green: run with
+`PYTHONPATH=/path/to/hermes-agent python3 scripts/release_gates.py`, not with the
+hermes-agent virtualenv, which does not ship them.
 """
 from __future__ import annotations
 
@@ -34,8 +39,10 @@ def main():
                'HERMES_RECEIPTS_JEV': '0', 'HERMES_RECEIPTS_STAMP': '0',
                'HERMES_RECEIPTS_GATE': 'observe', 'HERMES_ENABLE_PROJECT_PLUGINS': '0'}
         commands = [
-            ('tests', [sys.executable, '-m', 'pytest', '-q', '--import-mode=importlib',
-                       '--rootdir=tests', '--confcutdir=tests', 'tests']),
+            # `-p no:lazy-fixture` keeps this gate reproducible when a global
+            # pytest-lazy-fixture plugin is installed: it breaks pytest >= 8 collection.
+            ('tests', [sys.executable, '-m', 'pytest', '-q', '-p', 'no:lazy-fixture',
+                       '--import-mode=importlib', '--rootdir=tests', '--confcutdir=tests', 'tests']),
             ('validate', [sys.executable, '-c',
                           'from hermes_cli.plugins_cmd_catalog import cmd_validate; '
                           'cmd_validate(".", as_json=True, install_deps=False)']),
