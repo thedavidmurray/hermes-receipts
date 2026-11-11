@@ -1,0 +1,16 @@
+{
+  "name": "bold-branded",
+  "schema_version": 2,
+  "description": "Bold branded theme: high contrast, branded accents, verdicts always visible",
+  "foreground": "#ffffff",
+  "background": "#0a0a0a",
+  "ink_supported": "#00ff00",
+  "ink_contradicted": "#ff4444",
+  "ink_unverified": "#ffaa00",
+  "ink_muted": "#888888",
+  "palette_invert": false,
+  "hide_unsupported": false,
+  "soften_contradicted": false,
+  "brand_color": "#ff6b6b",
+  "brand_text": "Hermes Receipts"
+}

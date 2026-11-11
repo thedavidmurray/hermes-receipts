@@ -25,6 +25,10 @@ def setup(sub):
     task = sub.add_parser('task', help='Scoped task receipt from an explicit local manifest')
     task.add_argument('--manifest', required=True)
     task.add_argument('--png', required=True)
+    task.add_argument('--kit', choices=['minimal', 'verify', 'cost', 'full', 'ops'],
+                      help='Field kit to control receipt fields')
+    task.add_argument('--theme', choices=['thermal-classic', 'minimal-mono', 'bold-branded'],
+                      help='Visual theme for receipt aesthetics')
     task.add_argument('--print-usb', nargs=2, metavar=('VENDOR_HEX', 'PRODUCT_HEX'))
     fleet = sub.add_parser('fleet', help='Explicit opt-in local-only fleet scan')
     fleet.add_argument('--roots', nargs='+', required=True)
@@ -38,6 +42,10 @@ def setup(sub):
     report.add_argument('--png', required=True)
     report.add_argument('--start', help='Optional UTC ISO8601 lower bound; defaults to stored finals minimum')
     report.add_argument('--end', help='Optional UTC ISO8601 upper bound; defaults to stored finals maximum + 1s')
+    report.add_argument('--kit', choices=['minimal', 'verify', 'cost', 'full', 'ops'],
+                      help='Field kit to control receipt fields')
+    report.add_argument('--theme', choices=['thermal-classic', 'minimal-mono', 'bold-branded'],
+                      help='Visual theme for receipt aesthetics')
 
 
 def _task(args):
@@ -69,7 +77,8 @@ def _task(args):
             raise ValueError('only explicit artifact digest and local bare-remote probes available in CLI; tests need trusted in-process runner')
     private = judge_task(manifest['requirements'], evidence, window, claim=claim, links=manifest.get('links'))
     # A caller-supplied manifest may include labels but can never bypass review.
-    public = to_public_receipt(private, manifest.get('reviewed_labels', {}))
+    public = to_public_receipt(private, manifest.get('reviewed_labels', {}),
+                              kit=manifest.get('kit'), theme=manifest.get('theme'))
     output = render_task_png(public, args.png)
     print(public_text(public))
     print('Public PNG saved to requested local output.')
@@ -115,7 +124,8 @@ def _report(args):
     dimensions = args.group_by.split(',')
     groups = query_rollup(args.report_db, {'start': start, 'end': end,
         'detector_version': DETECTOR_VERSION, 'matcher_version': MATCHER_VERSION}, dimensions)
-    public = to_public_report(groups, query_coverage(args.report_db), start=start, end=end, group_by=dimensions)
+    public = to_public_report(groups, query_coverage(args.report_db), start=start, end=end,
+                                      group_by=dimensions, kit=args.kit, theme=args.theme)
     output = render_report_png(public, args.png)
     print(public_text(public))
     print('Public PNG saved to requested local output.')

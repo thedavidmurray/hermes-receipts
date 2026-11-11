@@ -11,6 +11,7 @@ from hermes_constants import get_hermes_home
 from .history import receipt_from_state, verify_hash
 from .receipt_core import classify, digest, match_claims
 from .render import render_png, render_text
+from .v2.render import render_task_png, render_report_png
 
 LOG = logging.getLogger(__name__)
 

@@ -1,0 +1,14 @@
+{
+  "name": "thermal-classic",
+  "schema_version": 2,
+  "description": "Classic thermal paper look: dark background, green/red ink for verdicts, high contrast",
+  "foreground": "#d4d4d4",
+  "background": "#181818",
+  "ink_supported": "#00ff00",
+  "ink_contradicted": "#ff0000",
+  "ink_unverified": "#ffff00",
+  "ink_muted": "#888888",
+  "palette_invert": false,
+  "hide_unsupported": false,
+  "soften_contradicted": false
+}

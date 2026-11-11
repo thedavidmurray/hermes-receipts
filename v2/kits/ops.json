@@ -1,0 +1,8 @@
+{
+  "name": "ops",
+  "schema_version": 2,
+  "description": "Operations kit: tools, duration, files - for agent workflow tracking",
+  "required_fields": ["tool_call_count", "duration", "files_touched"],
+  "optional_fields": ["model", "profile"],
+  "fields": ["tool_call_count", "duration", "files_touched", "model", "profile"]
+}
