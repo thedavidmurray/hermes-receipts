@@ -1,0 +1,14 @@
+{
+  "name": "minimal-mono",
+  "schema_version": 2,
+  "description": "Minimal monochrome: clean lines, single color, minimal decoration",
+  "foreground": "#e0e0e0",
+  "background": "#121212",
+  "ink_supported": "#ffffff",
+  "ink_contradicted": "#ffffff",
+  "ink_unverified": "#bbbbbb",
+  "ink_muted": "#666666",
+  "palette_invert": false,
+  "hide_unsupported": true,
+  "soften_contradicted": true
+}

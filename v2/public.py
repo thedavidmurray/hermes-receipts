@@ -8,6 +8,7 @@ from typing import Mapping
 from .contracts import SCHEMA_VERSION
 from .detect import DETECTOR_VERSION
 from .evidence import MATCHER_VERSION
+from .fields import render_fields, kit_fields, theme as get_theme, FIELD_SPECS
 
 VERDICTS = ('supported', 'contradicted', 'unverified', 'not_evaluable')
 # Deliberately reviewed vocabulary, not arbitrary requirement text from a manifest.
@@ -30,11 +31,18 @@ def _version(value):
     return value if isinstance(value, str) and VERSION.fullmatch(value) else 'version withheld'
 
 
-def to_public_receipt(private: Mapping, reviewed_labels: Mapping[str, str] | None = None) -> dict:
+def to_public_receipt(private: Mapping, reviewed_labels: Mapping[str, str] | None = None,
+                      kit: str | None = None, theme: str | None = None) -> dict:
     """Construct afresh; never copy private keys or arbitrary labels into a public value.
 
     The caller explicitly reviews aliases; only fixed vocabulary is shareable.
     If no reviewed alias is supplied, a numbered pseudonym replaces the label.
+
+    Keyword arguments:
+    kit:     Name of a field kit (minimal, verify, cost, full, ops) — controls
+             which fields are rendered; absent fields print "n/a".
+    theme:   Name of a theme (thermal-classic, minimal-mono, bold-branded) —
+             affects colours/contrast without removing verdict lines.
     """
     reviewed_labels = reviewed_labels or {}
     criteria = []
@@ -77,7 +85,9 @@ def to_public_receipt(private: Mapping, reviewed_labels: Mapping[str, str] | Non
                               'missing evidence is not a lie.'),
             'detector_version': DETECTOR_VERSION, 'matcher_version': MATCHER_VERSION,
             'warning': 'Experimental viewer; evidence scope and coverage are limited.',
-            'cost': 'Tokens/cost: unavailable for this task'}
+            'cost': 'Tokens/cost: unavailable for this task',
+            'kit': kit,
+            'theme': theme}
 
 
 def _counts(raw):
@@ -92,8 +102,15 @@ def _counts(raw):
 
 
 def to_public_report(rollup: list[dict], coverage: list[dict], *, start: float, end: float,
-                     group_by: list[str]) -> dict:
-    """Aggregate only allowlisted counts; group values become non-reversible ordinals."""
+                     group_by: list[str], kit: str | None = None, theme: str | None = None) -> dict:
+    """Aggregate only allowlisted counts; group values become non-reversible ordinals.
+
+    Keyword arguments:
+    kit:     Name of a field kit (minimal, verify, cost, full, ops) — controls
+             which fields are rendered; absent fields print "n/a".
+    theme:   Name of a theme (thermal-classic, minimal-mono, bold-branded) —
+             affects colours/contrast without removing verdict lines.
+    """
     safe_groups = {'profile', 'model', 'source', 'project_key', 'day', 'month'}
     if not group_by or any(g not in safe_groups for g in group_by):
         raise ValueError('unsupported public grouping')
@@ -115,4 +132,6 @@ def to_public_report(rollup: list[dict], coverage: list[dict], *, start: float, 
             'complete_sources': complete, 'partial_sources': len(coverage) - complete,
             'warning': 'Observed evidence-backed claim rate, not a lie rate. Missing evidence is unverified.',
             'detector_version': DETECTOR_VERSION, 'matcher_version': MATCHER_VERSION,
-            'cost': 'Tokens/cost: unavailable (session totals not attributed to replies)'}
+            'cost': 'Tokens/cost: unavailable (session totals not attributed to replies)',
+            'kit': kit,
+            'theme': theme}
