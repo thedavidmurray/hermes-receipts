@@ -16,8 +16,30 @@ from .v2.render import render_task_png, render_report_png
 LOG = logging.getLogger(__name__)
 
 
+#: The plugin's own name: what it keys its profile-scoped ``plugin-data`` dir on.
+#: It shipped as ``receipts`` before the catalog rename (that key is taken
+#: upstream), so an existing install's ledger and images still live under the
+#: older dir and stay readable until the new one holds data of its own.
+DATA_NAME = 'receipt-printer'
+LEGACY_DATA_NAME = 'receipts'
+
+
+def _data_name() -> str:
+    """``plugin-data/<name>`` to use: the legacy dir while it is the only ledger."""
+    legacy = get_hermes_home() / 'plugin-data' / LEGACY_DATA_NAME
+    current = get_hermes_home() / 'plugin-data' / DATA_NAME
+    if (legacy / 'data.db').is_file() and not (current / 'data.db').is_file():
+        return LEGACY_DATA_NAME
+    return DATA_NAME
+
+
+def data_dir() -> Path:
+    """This profile's plugin-data dir, honouring the pre-rename ``plugin-data/receipts``."""
+    return plugin_data_dir(_data_name())
+
+
 def _db():
-    db = plugin_db('receipts')
+    db = plugin_db(_data_name())
     db.execute('''CREATE TABLE IF NOT EXISTS ledger (
       id INTEGER PRIMARY KEY, session_id TEXT, turn_id TEXT, task_id TEXT, call_id TEXT UNIQUE,
       tool TEXT NOT NULL, args_sha256 TEXT NOT NULL, action TEXT, label TEXT,
@@ -46,13 +68,13 @@ def _source_db():
 
 def _receipt(session_id=None, turn_id=None):
     return receipt_from_state(_source_db(), session_id=session_id or None, turn_id=turn_id,
-                              ledger_path=plugin_data_dir('receipts') / 'data.db',
+                              ledger_path=data_dir() / 'data.db',
                               classify_jev=os.environ.get('HERMES_RECEIPTS_JEV') == '1')
 
 
 def _image(receipt):
     # Never use a caller-provided path: receipts may be requested from chat.
-    path = plugin_data_dir('receipts') / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
+    path = data_dir() / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
     return render_png(receipt, path)
 
 
@@ -113,7 +135,7 @@ def _cli_handler(args):
                 if not ok:
                     return 1
         elif args.receipt_action == 'verify':
-            receipt = verify_hash(_source_db(), args.hash, ledger_path=plugin_data_dir('receipts') / 'data.db')
+            receipt = verify_hash(_source_db(), args.hash, ledger_path=data_dir() / 'data.db')
             if receipt is None:
                 print('NOT VERIFIED: hash not found in this profile state.db')
                 return 1
@@ -163,7 +185,7 @@ def _trigger_hook(name):
         from .v2 import triggers
         return triggers.fire(name, **kwargs)
 
-    handler.__name__ = f'receipts_{name.replace("-", "_")}_trigger'
+    handler.__name__ = f'receipt_printer_{name.replace("-", "_")}_trigger'
     return handler
 
 

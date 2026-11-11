@@ -99,7 +99,7 @@ Root paths accepted only by explicit local CLI, never web/chat arguments. Preser
 
 ## 4. Store, fleet backfill and grouping
 
-Current-profile v2 tables in `plugin_db('receipts')`, prefixed `v2_`; v1 ledger untouched. Explicit fleet CLI writes an external user-chosen report DB using same schema. Tables:
+Current-profile v2 tables in `plugin_db('receipt-printer')`, prefixed `v2_`; v1 ledger untouched. Explicit fleet CLI writes an external user-chosen report DB using same schema. Tables:
 - `v2_sources(source_id PRIMARY KEY, schema_version, availability, cutoff, coverage_reason)`.
 - `v2_turns(turn_key PRIMARY KEY, source_id, profile, session_id, user_id, final_id, final_time, model, model_certainty, source, project_key)`.
 - `v2_claims(claim_id PRIMARY KEY, turn_key, kind, span_start, span_end, target_key, task_key, detector_version)`.

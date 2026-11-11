@@ -126,7 +126,7 @@ separately. Combined equals deterministic by policy, not an observed improvement
 
 ## Release boundary
 
-Do not repin `plugin-catalog/receipts.yaml` until exact-head independent review
+Do not repin `plugin-catalog/receipt-printer.yaml` until exact-head independent review
 and clean gates establish the release SHA. Existing catalog pin is retained;
 source publication or a green fixture suite is **not** v2 acceptance. David owns
 activation/submission; the newer coordinator deadline is Nov 11 **2 PM PT**

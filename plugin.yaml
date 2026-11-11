@@ -1,5 +1,5 @@
-name: receipts
-version: 0.1.0
+name: receipt-printer
+version: "0.2.0"
 description: "Store-style receipts for Hermes turns: observed tools and conservative claims, with read-only historical backfill."
 requires_hermes: ">=0.21.7"
 provides_hooks:

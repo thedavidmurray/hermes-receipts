@@ -1355,7 +1355,7 @@ def cron_line(config: TriggerConfig | None = None, *, root: str | None = None,
     spec = getattr(config, 'triggers', config).spec('digest')
     base = Path(root) if root else Path(__file__).resolve().parents[1]
     values = {'root': str(base), 'python': python or 'python3',
-              'report_db': report_db or '~/.hermes/receipts/digest.db', 'png': png or DIGEST_PNG}
+              'report_db': report_db or '~/.hermes/receipt-printer/digest.db', 'png': png or DIGEST_PNG}
     line = DIGEST_CRON.format(**values)
     if not spec.enabled:
         return f'# receipts digest trigger is OFF (triggers.digest.enabled: false); nothing scheduled\n# {line}'

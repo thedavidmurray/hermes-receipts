@@ -15,8 +15,8 @@ The example is generated from actual controlled artifact bytes by `tests/create_
 ## Install / use
 
 ```bash
-hermes plugins install thedavidmurray/hermes-receipts
-hermes plugins enable receipts
+hermes plugins install receipt-printer
+hermes plugins enable receipt-printer
 hermes receipt last --png receipt.png
 hermes receipt verify <full 64-character ledger sha256>
 ```
@@ -48,14 +48,14 @@ The optional response stamp is **off**: `HERMES_RECEIPTS_STAMP=1` enables a lega
 
 ✓ means a matching tool call in the **same user turn** has an explicit success result. ✗ means a matching tool failed or was not recorded; it is **not proof the action never happened**. “not observed” denotes explicit subagent, CI or out-of-process work. Unknown tool results cannot be marked successful. Claims are conservative regex detections, not general natural-language entailment. In particular, a `git push` command exiting zero is evidence of command completion, *not* read-back proof that the remote branch changed; tests exiting zero are evidence of that process, not that all possible tests pass. A SHA-256 hash checks the canonical ledger rows reconstructed from `state.db`, not a signature, tamper-resistant audit log, or external attestation. No tool result bodies appear in the receipt.
 
-The tool hook writes `tool name`, `args SHA-256`, a coarse action category, status, duration and session/turn/call ids to profile-scoped `plugin_db('receipts')`. Raw args and results are not stored there. The history reader opens **only this profile's** `state.db` in SQLite `mode=ro`, and reconstructs turns lazily from the preceding user message, assistant `tool_calls`, matching tool responses and final answer. Existing turns need no import/migration. For historical turns Hermes records neither per-turn tool duration nor per-turn usage: these are shown as unavailable, with separate **session** token/cost totals if present. Wall time is the historical user→final interval. Ledger coverage is limited by persisted tool-call history; tool calls inside `execute_code`, subagents, shell children and separate CLI jobs are not attributed to a parent unless Hermes recorded them in that parent turn.
+The tool hook writes `tool name`, `args SHA-256`, a coarse action category, status, duration and session/turn/call ids to profile-scoped `plugin_db('receipt-printer')`. Raw args and results are not stored there. The history reader opens **only this profile's** `state.db` in SQLite `mode=ro`, and reconstructs turns lazily from the preceding user message, assistant `tool_calls`, matching tool responses and final answer. Existing turns need no import/migration. For historical turns Hermes records neither per-turn tool duration nor per-turn usage: these are shown as unavailable, with separate **session** token/cost totals if present. Wall time is the historical user→final interval. Ledger coverage is limited by persisted tool-call history; tool calls inside `execute_code`, subagents, shell children and separate CLI jobs are not attributed to a parent unless Hermes recorded them in that parent turn.
 
 ## Disclosure (catalog rule 13)
 
-- **Outside reads:** by default only the current profile's `state.db` read-only; an **explicit local** `receipt fleet --roots ...` opt-in also reads state DBs under the selected roots, possibly including other profiles. Message text, conversation history, tool arguments and results can contain secrets and are processed in memory. The local `task --manifest` probes explicitly named artifact files or a local bare Git remote. No browser login, implicit cross-profile scan or remote probe.
-- **Stored data and retention:** v1 keeps a profile-scoped SQLite ledger and private PNGs under `plugin-data/receipts/`. Legacy v1 `/receipt`, `last` and `verify` outputs contain answer excerpts, basenames, ids and hashes: **PRIVATE, review before sharing**. The v2 fleet writes sanitized, versioned metadata and coverage to the user-chosen `--report-db`; reports and task PNGs remain at the user-chosen output path **until the user deletes them**. The current-session public pane PNG is generated in memory. Private manifest/DB files may identify sessions or tasks and should be kept separate from shareable PNGs; no automatic expiry/deletion or pseudonym map is provided. Args SHA-256 hashes in v1 may be guessable for low-entropy inputs. Do not distribute private manifest/report DB.
+- **Outside reads:** by default only the current profile's `state.db` read-only; an **explicit local** `receipt fleet --roots ...` opt-in also reads state DBs under the selected roots, possibly including other profiles. Message text, conversation history, tool arguments and results can contain secrets and are processed in memory. The local `task --manifest` checks for itself, only when the manifest asks: it re-runs the manifest's own test argv, hashes the named files, and probes an explicitly named local bare Git remote read-only. No browser login, implicit cross-profile scan or remote probe.
+- **Stored data and retention:** v1 keeps a profile-scoped SQLite ledger and private PNGs under `plugin-data/receipt-printer/`. Legacy v1 `/receipt`, `last` and `verify` outputs contain answer excerpts, basenames, ids and hashes: **PRIVATE, review before sharing**. The v2 fleet writes sanitized, versioned metadata and coverage to the user-chosen `--report-db`; reports and task PNGs remain at the user-chosen output path **until the user deletes them**. The current-session public pane PNG is generated in memory. Private manifest/DB files may identify sessions or tasks and should be kept separate from shareable PNGs; no automatic expiry/deletion or pseudonym map is provided. Args SHA-256 hashes in v1 may be guessable for low-entropy inputs. Do not distribute private manifest/report DB.
 - **Network/telemetry/inference:** deterministic v1/v2 receipt checks initiate no network requests, metrics export, model calls, remote attestation or self-update. The separately documented, default-off `HERMES_RECEIPTS_JEV=1` classifier can send redacted in-memory context to an external API; see the opt-in disclosure below. Images use local bundled/system fonts. The Desktop pane calls only the authenticated local plugin route.
-- **Shell/USB:** no shell commands from a manifest and none by default. Explicit fleet scans stream read-only transactions and may report partial/unavailable coverage; an explicit task probe may read actual file bytes or local bare Git refs. User-invoked `--print-usb` accesses the specified printer through the optional third-party `python-escpos` library and requires USB permission. Submission ACK does **not** confirm paper; without observed hardware the deliverable is PNG only.
+- **Shell/USB:** it only runs the checks you configure, never the agent's commands. A manifest's check re-runs the user's own test command (a trusted argv, never a shell string or the agent's text; 120 s timeout, output discarded, file bytes must match before and after), hashes the named files, and runs read-only `git rev-parse` / `git rev-list` against an explicitly named local bare remote with no fetch. Nothing runs unless a manifest asks for it. Explicit fleet scans stream read-only transactions and may report partial/unavailable coverage. User-invoked `--print-usb` accesses the specified printer through the optional third-party `python-escpos` library and requires USB permission. Submission ACK does **not** confirm paper; without observed hardware the deliverable is PNG only.
 - **Credentials:** none stored or read from another client's login. Installing from GitHub is Hermes's normal plugin manager operation, not the plugin's own network call.
 - **Approvals:** never approves tools. Optional `pre_tool_call` blocking is off by default and only reviews the prior persisted answer for unbacked claims in the same session; it is not a current-turn proof. The legacy stamp is also off by default.
 - **Desktop:** SDK current-session pane and authenticated profile-scoped backend route; no per-turn DOM button or fleet web API. A missing/mismatched session is rejected; the pane cannot claim supported completion without an explicit task manifest.
@@ -133,7 +133,7 @@ Built-in kits live in `v2/kits/*.json` and are selectable by name:
 
 A kit lists `sections` (`counts`, `evidence` — the verdict, criteria and footer
 sections are mandatory and cannot be listed or removed) and `fields`. Add your own
-by dropping `kits/<name>.json` into `~/.hermes/receipts/` (or
+by dropping `kits/<name>.json` into `~/.hermes/receipt-printer/` (or
 `$HERMES_RECEIPTS_CONFIG_DIR`) with the same shape and selecting `--kit <name>`; a
 user file with a built-in's name overrides it. An unknown kit or field raises
 instead of silently printing less.
@@ -175,7 +175,7 @@ for `supported`.
 ### Customize your printer
 
 Treat a receipt like a real receipt printer you configure. One documented
-`receipts.yaml` in the plugin config dir (`~/.hermes/receipts`, or
+`receipts.yaml` in the plugin config dir (`~/.hermes/receipt-printer`, or
 `HERMES_RECEIPTS_CONFIG_DIR`) covers paper, look, section order, shop branding,
 your own fine-print fields and the USB printer options:
 
@@ -295,7 +295,7 @@ triggers:
   prints when the text declares at least `N` claims (also spelled
   `when: {min_claims: N}` or `min_claims: N`).
 * **Destinations:** `local` is the PNG history store
-  (`~/.hermes/receipts/trigger-receipts`) and is on for every trigger. `chat` replies
+  (`~/.hermes/receipt-printer/trigger-receipts`) and is on for every trigger. `chat` replies
   in the origin chat — an ASCII code block on Discord, the PNG elsewhere. `printer` is
   opt-in and **requires** `device: [vendor, product]`, so an automatic print can never
   pick the wrong device. `file` exports the PNG to a path.
@@ -376,4 +376,4 @@ HERMES_HOME=/path/to/disposable-home hermes plugins doctor . --ci
 
 `python3 eval/score.py --profiles /path/to/profiles` recomputes the test from `eval/labels.json`, `eval/claim_labels.json`, and local `hive`/`kilo` state.db files. We sampled 200 historical assistant finals from the two profiles: id divisible by 13, recent 3,000 qualifying finals per profile, then seeded stratification into 100 keyword-bearing and 100 other answers. **Kilo, the implementing agent**, labelled the answer excerpts (first 230–350 characters, checking later keyword contexts) for whether each asserted an affirmative past local action in the seven supported classes; critic independently spot-checked 30, agreeing on about 28/30. Kilo then reviewed each of the 66 extracted (kind, sentence) pairs and marked 5 incorrect; **critic did not independently review these claim-level labels**. The public JSON contains only message IDs, profile names, labels and hashed snippets, not private answer text. Results on this deliberately enriched, implementer-labelled sample: **TP=47 FP=7 FN=47 TN=99; answer-level precision=87.04%, recall=50.00%; claim-level extraction precision=61/66=92.42%**. This is not a claim that individual tool-evidence verdicts are correct; those were not independently labelled. Many paraphrases are missed. The corpus is development data, not an independent holdout. Keep the gate off unless you can tolerate false negatives and false positives.
 
-**Catalog:** draft `plugin-catalog/receipts.yaml` in this repo. Upstream PR and demo post are reserved for David; hackathon cutoff **Nov 11, 1PM PT** per the Typeform confirmation (earlier than the tweet wording).
+**Catalog:** draft `plugin-catalog/receipt-printer.yaml` in this repo. Upstream PR and demo post are reserved for David; hackathon cutoff **Nov 11, 1PM PT** per the Typeform confirmation (earlier than the tweet wording).

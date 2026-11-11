@@ -1,7 +1,7 @@
 """One documented ``receipts.yaml``: everything about the printer a user configures.
 
 The user configures *paper and ink*, never the verdict. One file in the plugin
-config dir (:func:`v2.fields.config_dir`, ``~/.hermes/receipts`` by default) covers:
+config dir (:func:`v2.fields.config_dir`, ``~/.hermes/receipt-printer`` by default) covers:
 
 ``kit`` / ``theme`` / ``fields``
     which content and which look, exactly like the CLI flags.
@@ -663,7 +663,7 @@ schema_version: 2
 #     value: "No refunds on agent promises."
 
 # -- branding --------------------------------------------------------------
-# logo: ~/.hermes/receipts/logo.png     # dithered to 1-bit for thermal paper
+# logo: ~/.hermes/receipt-printer/logo.png     # dithered to 1-bit for thermal paper
 # barcode: hash                         # none | hash | url | qr (qr needs qrcode/segno)
 # barcode_url: "https://example.invalid/r/{hash_prefix}"
 

@@ -160,10 +160,18 @@ _PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 
 
 def config_dir() -> Path:
-    """Directory users drop their own ``kits/`` and ``themes/`` files into."""
+    """Directory users drop their own ``kits/``, ``themes/`` and ``receipts.yaml`` into.
+
+    Keyed on the plugin's own name (``~/.hermes/<plugin>/``). The plugin shipped as
+    ``receipts`` before the catalog rename, so an existing install's dir — its config,
+    custom kits/themes and trigger state — is adopted until the new dir exists.
+    """
     configured = os.environ.get('HERMES_RECEIPTS_CONFIG_DIR')
-    return (Path(configured).expanduser() if configured
-            else Path.home() / '.hermes' / 'receipts')
+    if configured:
+        return Path(configured).expanduser()
+    current = Path.home() / '.hermes' / 'receipt-printer'
+    legacy = Path.home() / '.hermes' / 'receipts'
+    return legacy if legacy.is_dir() and not current.is_dir() else current
 
 
 def _load_json_dir(directory: Path) -> dict[str, dict]:

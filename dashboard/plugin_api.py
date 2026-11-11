@@ -10,16 +10,17 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import sqlite3
 from hermes_constants import get_hermes_home
-from plugins.plugin_storage import plugin_data_dir
 
 # Dashboard API files are loaded as standalone modules, not package children.
 _ROOT = Path(__file__).resolve().parent.parent
-_SPEC = importlib.util.spec_from_file_location('receipts_dashboard_lib', _ROOT / '__init__.py',
+_SPEC = importlib.util.spec_from_file_location('receipt_printer_dashboard_lib', _ROOT / '__init__.py',
                                               submodule_search_locations=[str(_ROOT)])
 _LIB = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = _LIB
 _SPEC.loader.exec_module(_LIB)
 receipt_from_state, render_png, render_text = _LIB.receipt_from_state, _LIB.render_png, _LIB.render_text
+#: The plugin-data dir (honouring a pre-rename ``plugin-data/receipts``), resolved per call.
+data_dir = _LIB.data_dir
 
 router = APIRouter()
 #: Query-parameter style limits: a bad kit/theme is a client error, not a missing session.
@@ -28,7 +29,7 @@ MAX_STYLE_LENGTH = 64
 
 def _style(kit: str | None, theme: str | None, fields: str | None) -> dict:
     """Validate a pane's kit/theme/field choice against the on-disk registries."""
-    from receipts_dashboard_lib.v2.fields import (kit_names, theme_names, validate_fields)
+    from receipt_printer_dashboard_lib.v2.fields import (kit_names, theme_names, validate_fields)
 
     if kit and kit not in kit_names():
         raise HTTPException(status_code=400, detail='Unsupported receipt kit')
@@ -74,8 +75,8 @@ def _session_profile_guard(session_id: str) -> None:
 @router.get('/options', dependencies=[Depends(_authorize)])
 def options():
     """The kits, themes and fields a pane may offer, straight from the registry."""
-    from receipts_dashboard_lib.v2.fields import (KNOWN_FIELDS, OPTIONAL_SECTIONS,
-                                                  kit_descriptions, theme_descriptions)
+    from receipt_printer_dashboard_lib.v2.fields import (KNOWN_FIELDS, OPTIONAL_SECTIONS,
+                                                         kit_descriptions, theme_descriptions)
     return {'kits': kit_descriptions(), 'themes': theme_descriptions(),
             'fields': list(KNOWN_FIELDS), 'optional_sections': list(OPTIONAL_SECTIONS),
             'default': 'verify'}
@@ -96,11 +97,11 @@ def current(session_id: str = Query(..., min_length=1, max_length=256),
     try:
         source = get_hermes_home() / 'state.db'
         receipt_from_state(source, session_id=session_id,
-                           ledger_path=plugin_data_dir('receipts') / 'data.db')
+                           ledger_path=data_dir() / 'data.db')
         from datetime import datetime, timezone
-        from receipts_dashboard_lib.v2.public import to_public_receipt
-        from receipts_dashboard_lib.v2.render import render_task_png
-        from receipts_dashboard_lib.v2.telemetry import facts_from_state
+        from receipt_printer_dashboard_lib.v2.public import to_public_receipt
+        from receipt_printer_dashboard_lib.v2.render import render_task_png
+        from receipt_printer_dashboard_lib.v2.telemetry import facts_from_state
         start = datetime.now(timezone.utc).timestamp() - 86400
         end = datetime.now(timezone.utc).timestamp()
         private = {'requirements': [], 'criterion_findings': {}, 'completion': {'verdict': 'unverified'},
@@ -126,8 +127,8 @@ def last(session_id: str = Query(..., min_length=1, max_length=256)):
     _session_profile_guard(session_id)
     try:
         receipt = receipt_from_state(get_hermes_home() / 'state.db', session_id=session_id,
-                                     ledger_path=plugin_data_dir('receipts') / 'data.db')
-        path = plugin_data_dir('receipts') / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
+                                     ledger_path=data_dir() / 'data.db')
+        path = data_dir() / 'images' / f"turn-{receipt['final_id']}-{receipt['hash'][:12]}.png"
         render_png(receipt, path)
         return {'text': render_text(receipt), 'png': 'data:image/png;base64,' + base64.b64encode(path.read_bytes()).decode(),
                 'hash': receipt['hash'], 'final_id': receipt['final_id']}

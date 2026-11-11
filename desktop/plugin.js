@@ -88,7 +88,7 @@ function ReceiptPane({ ctx }) {
 }
 
 export default {
-  id: 'receipts',
+  id: 'receipt-printer',
   name: 'Receipts',
   register(ctx) {
     // No per-turn transcript button slot in the public SDK; use a dockable pane.
