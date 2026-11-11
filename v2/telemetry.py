@@ -47,6 +47,11 @@ def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f'PRAGMA table_info({table})')}
 
 
+def _col(row: Mapping, columns: set[str], key: str) -> Any:
+    """Value of an optional column; older/leaner state DBs simply lack some."""
+    return row[key] if key in columns else None
+
+
 def _json(text: Any, fallback: Any) -> Any:
     try:
         value = json.loads(text) if isinstance(text, str) and text.strip() else fallback
@@ -134,16 +139,17 @@ def _top_tools_from_session(conn: sqlite3.Connection, session: Mapping) -> list[
     return [[name, count] for name, count in counts.most_common(TOP_TOOL_COUNT)]
 
 
-def _provider(session: Mapping, conn: sqlite3.Connection, session_id: str) -> str | None:
-    for key in ('billing_provider',):
-        if key in session.keys() and isinstance(session[key], str) and session[key].strip():
-            return session[key].strip()
+def _provider(session: Mapping, columns: set[str], conn: sqlite3.Connection,
+              session_id: str) -> str | None:
+    billing = _col(session, columns, 'billing_provider')
+    if isinstance(billing, str) and billing.strip():
+        return billing.strip()
     if 'session_model_usage' in {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}:
         row = conn.execute('SELECT billing_provider FROM session_model_usage WHERE session_id=? '
                            'ORDER BY last_seen DESC LIMIT 1', (session_id,)).fetchone()
         if row is not None and isinstance(row['billing_provider'], str) and row['billing_provider'].strip():
             return row['billing_provider'].strip()
-    model = session['model'] if 'model' in session.keys() else None
+    model = _col(session, columns, 'model')
     if isinstance(model, str) and '/' in model:
         return model.split('/', 1)[0] or None
     return None
@@ -188,15 +194,15 @@ def facts_from_state(db_path: Path | str, session_id: str | None = None,
             tool_total = sum(count for _, count in top_tools)
 
         metrics: dict[str, Any] = {}
-        incoming = session['input_tokens'] if 'input_tokens' in columns else None
-        outgoing = session['output_tokens'] if 'output_tokens' in columns else None
+        incoming = _col(session, columns, 'input_tokens')
+        outgoing = _col(session, columns, 'output_tokens')
         if isinstance(incoming, (int, float)) and incoming >= 0:
             metrics['tokens_in'] = incoming
         if isinstance(outgoing, (int, float)) and outgoing >= 0:
             metrics['tokens_out'] = outgoing
         if 'tokens_in' in metrics and 'tokens_out' in metrics:
             metrics['tokens_total'] = metrics['tokens_in'] + metrics['tokens_out']
-        cost = session['estimated_cost_usd'] if 'estimated_cost_usd' in columns else None
+        cost = _col(session, columns, 'estimated_cost_usd')
         if isinstance(cost, (int, float)) and cost >= 0:
             metrics['cost_usd'] = cost
             metrics['cost_scope'] = _SESSION_SCOPE
@@ -208,14 +214,16 @@ def facts_from_state(db_path: Path | str, session_id: str | None = None,
             metrics['top_tools'] = [[str(name), int(count)] for name, count in top_tools]
         if files:
             metrics['files_touched'] = len(files)
-        if isinstance(session['model'], str) and session['model'].strip():
-            metrics['model'] = session['model'].strip()
-        provider = _provider(session, conn, sid)
+        model = _col(session, columns, 'model')
+        if isinstance(model, str) and model.strip():
+            metrics['model'] = model.strip()
+        provider = _provider(session, columns, conn, sid)
         if provider:
             metrics['provider'] = provider
-        if 'profile_name' in columns and isinstance(session['profile_name'], str) and session['profile_name'].strip():
-            metrics['profile'] = session['profile_name'].strip()
-            metrics['agent'] = session['profile_name'].strip()
+        profile = _col(session, columns, 'profile_name')
+        if isinstance(profile, str) and profile.strip():
+            metrics['profile'] = profile.strip()
+            metrics['agent'] = profile.strip()
         metrics['session'] = sid
 
         duration = _duration(session, columns, start, end)
@@ -233,14 +241,16 @@ def _duration(session: Mapping, columns: set[str], start: float | None,
         return round(end - start, 1)
     finished = None
     for key in ('ended_at', 'last_activity_at'):
-        if key in columns and isinstance(session[key], (int, float)) and session[key]:
-            finished = float(session[key])
+        value = _col(session, columns, key)
+        if isinstance(value, (int, float)) and value:
+            finished = float(value)
             break
     if finished is None and end is not None:
         finished = end
     began = None
-    if 'started_at' in columns and isinstance(session['started_at'], (int, float)) and session['started_at']:
-        began = float(session['started_at'])
+    started = _col(session, columns, 'started_at')
+    if isinstance(started, (int, float)) and started:
+        began = float(started)
     if began is None or finished is None or finished < began:
         return None
     return round(finished - began, 1)

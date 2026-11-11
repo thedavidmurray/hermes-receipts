@@ -22,6 +22,7 @@ from v2.public import to_public_receipt, to_public_report, verify_receipt_hash
 from v2.render import (LEFT, LINE_HEIGHT, TOP, Line, public_text, receipt_lines,
                        render_report_png, render_task_png, _line_color)
 
+ROOT = Path(__file__).resolve().parents[1]
 TARGET = 'a' * 64
 VERSION = 'b' * 64
 EVIDENCE = 'c' * 64
@@ -393,3 +394,85 @@ def test_auto_kit_consumes_the_reviewed_rules_file_and_drops_v1_only_fields():
     assert not {'sources', 'artifacts', 'errors', 'push_check'} & set(auto_kit_fields(
         {'session_type': 'research'}))
     assert 'verdict' not in auto_kit_fields({'tests_run': True})
+
+
+# ── telemetry ──────────────────────────────────────────────────────────────
+def test_telemetry_tolerates_a_lean_state_db_and_reads_real_numbers(tmp_path):
+    import sqlite3
+
+    from v2.telemetry import facts_from_state
+
+    lean = tmp_path / 'lean.db'
+    with sqlite3.connect(lean) as conn:
+        conn.executescript("""CREATE TABLE sessions(id TEXT PRIMARY KEY, profile_name TEXT);
+            CREATE TABLE messages(id INTEGER PRIMARY KEY, session_id TEXT, role TEXT, content TEXT,
+                tool_call_id TEXT, tool_calls TEXT, tool_name TEXT, timestamp REAL);
+            INSERT INTO sessions VALUES ('s','solo');
+            INSERT INTO messages VALUES (1,'s','user','do it',NULL,NULL,NULL,10);
+            INSERT INTO messages VALUES (2,'s','assistant','Done',NULL,NULL,NULL,20);""")
+    # A schema without model/tokens/cost must not raise: those fields are simply absent.
+    metrics = facts_from_state(lean, session_id='s')
+    assert metrics['session'] == 's' and metrics['profile'] == 'solo' and metrics['turns'] == 1
+    assert 'model' not in metrics and 'tokens_in' not in metrics
+
+    rich = tmp_path / 'rich.db'
+    with sqlite3.connect(rich) as conn:
+        conn.executescript("""CREATE TABLE sessions(id TEXT PRIMARY KEY, profile_name TEXT, model TEXT,
+                source TEXT, input_tokens INTEGER, output_tokens INTEGER, estimated_cost_usd REAL,
+                started_at REAL, ended_at REAL, tool_names TEXT, billing_provider TEXT);
+            CREATE TABLE messages(id INTEGER PRIMARY KEY, session_id TEXT, role TEXT, content TEXT,
+                tool_call_id TEXT, tool_calls TEXT, tool_name TEXT, timestamp REAL);
+            INSERT INTO sessions VALUES ('s','kilo','vendor/model','kanban',100,50,0.25,1.0,61.0,NULL,'custom:x');
+            INSERT INTO messages VALUES (1,'s','user','go',NULL,NULL,NULL,1);
+            INSERT INTO messages VALUES (2,'s','assistant',NULL,NULL,
+                '[{"id":"c1","function":{"name":"terminal","arguments":"{}"}}]',NULL,2);
+            INSERT INTO messages VALUES (3,'s','assistant','Done',NULL,NULL,NULL,60);""")
+    metrics = facts_from_state(rich, session_id='s')
+    assert metrics['tokens_total'] == 150 and metrics['cost_usd'] == 0.25
+    assert metrics['provider'] == 'custom:x' and metrics['tool_calls'] == 1
+    assert metrics['duration_seconds'] == 59.0 and metrics['model'] == 'vendor/model'
+
+
+# ── desktop pane API ───────────────────────────────────────────────────────
+def test_current_route_accepts_a_kit_and_theme_and_rejects_unknown_ones(tmp_path, monkeypatch):
+    import importlib.util
+    import sqlite3
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    db = tmp_path / 'state.db'
+    with sqlite3.connect(db) as conn:
+        conn.executescript("""CREATE TABLE sessions(id TEXT PRIMARY KEY, profile_name TEXT,
+                input_tokens INTEGER, output_tokens INTEGER, estimated_cost_usd REAL);
+            CREATE TABLE messages(id INTEGER PRIMARY KEY, session_id TEXT, role TEXT, content TEXT,
+                tool_call_id TEXT, tool_calls TEXT, tool_name TEXT, timestamp REAL);
+            INSERT INTO sessions(id, profile_name) VALUES ('good','default');
+            INSERT INTO messages VALUES (1,'good','user','Hi',NULL,NULL,NULL,1);
+            INSERT INTO messages VALUES (2,'good','assistant','Done',NULL,NULL,NULL,2);""")
+    monkeypatch.setenv('HERMES_HOME', str(tmp_path))
+    spec = importlib.util.spec_from_file_location('pane_api_kits', ROOT / 'dashboard/plugin_api.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    app = FastAPI()
+    app.state.auth_required = True
+
+    @app.middleware('http')
+    async def owner(request, call_next):
+        if request.headers.get('x-test-owner') == 'verified':
+            request.state.hosted_http_authenticated = True
+        return await call_next(request)
+
+    app.include_router(module.router)
+    client = TestClient(app, headers={'x-test-owner': 'verified'})
+    options = client.get('/options')
+    assert options.status_code == 200
+    assert 'verify' in options.json()['kits'] and 'dot-matrix' in options.json()['themes']
+    assert client.get('/current?session_id=good&kit=no-such-kit').status_code == 400
+    assert client.get('/current?session_id=good&theme=neon').status_code == 400
+    assert client.get('/current?session_id=good&fields=tokens_in,nope').status_code == 400
+    styled = client.get('/current?session_id=good&kit=cost&theme=ascii')
+    assert styled.status_code == 200
+    body = styled.json()
+    assert body['kit'] == 'cost' and body['theme'] == 'ascii'
+    assert body['png'].startswith('data:image/png;base64,')

@@ -42,12 +42,13 @@ window.switchSession=(id)=>{const s=host.state.activeSessionId;s.current=id;s.li
 const pending=[];window.resolvePending=()=>pending.shift()?.();
 const ctx={register:x=>window.pane=x,rest:async url=>{
  window.requests.push(url);
+ if(!url.startsWith('/options'))window.receipts.push(url);
  const id=new URL('https://local'+url).searchParams.get('session_id');
  if(id==='s1')await new Promise(done=>pending.push(done));
  const response=await fetch(window.apiBase+url,{headers:{Authorization:'Bearer '+window.apiToken}});
  if(!response.ok)throw Error('API HTTP '+response.status);
  const result=await response.json();window.responses.push(id);return {...result,warning:result.warning+' Active '+id}
-}};window.requests=[];window.responses=[];plugin.register(ctx);createRoot(document.getElementById('root')).render(window.pane.render());`,
+}};window.requests=[];window.receipts=[];window.responses=[];plugin.register(ctx);createRoot(document.getElementById('root')).render(window.pane.render());`,
   resolveDir:temp, loader:'js'}, outfile:react,bundle:true,format:'iife',platform:'browser',
   nodePaths:[path.join(hermes, 'node_modules')],alias:{'@hermes/plugin-sdk':sdk}})
 const png = process.env.RECEIPT_PNG
@@ -66,16 +67,33 @@ try {
   if (await button.isEnabled()) throw Error('Missing active-session guard')
   await page.evaluate(()=>window.switchSession('s1'))
   await button.click()
-  await page.waitForFunction(()=>window.requests.length===1)
+  await page.waitForFunction(()=>window.receipts.length===1)
   await page.evaluate(()=>window.switchSession('s2'))
   await button.click()
-  await page.waitForFunction(()=>window.requests.length===2)
+  await page.waitForFunction(()=>window.receipts.length===2)
   await page.waitForFunction(()=>document.body.innerText.includes('Active s2'))
   await page.evaluate(()=>window.resolvePending())
   await page.waitForFunction(()=>window.responses.includes('s1') && window.responses.includes('s2'))
   await page.waitForTimeout(50)
   await page.getByRole('img',{name:/Public scoped receipt/}).waitFor()
-  const state = await page.evaluate(()=>({requests:window.requests, warning:document.body.innerText,
+  const optionsResponse = await fetch(api + '/options', { headers: auth })
+  const optionsBody = await optionsResponse.json()
+  if (optionsResponse.status !== 200 || !optionsBody.kits?.verify || !optionsBody.themes?.['dot-matrix'])
+    throw Error('options endpoint: ' + JSON.stringify(optionsBody).slice(0, 200))
+  const badKit = await fetch(api + '/current?session_id=s1&kit=nope', { headers: auth })
+  const badTheme = await fetch(api + '/current?session_id=s1&theme=neon', { headers: auth })
+  if (badKit.status !== 400 || badTheme.status !== 400)
+    throw Error('unsupported kit/theme must be rejected: ' + badKit.status + '/' + badTheme.status)
+  // The picker changes what is requested and what the pane reports it rendered.
+  await page.getByLabel('Receipt kit').selectOption('cost')
+  await page.getByLabel('Receipt theme').selectOption('ascii')
+  await button.click()
+  await page.waitForFunction(()=>window.receipts.length===3)
+  await page.waitForFunction(()=>document.body.innerText.includes('kit cost'))
+  const styled = await page.evaluate(()=>({url:window.receipts[2], text:document.body.innerText}))
+  if (!styled.url.includes('kit=cost') || !styled.url.includes('theme=ascii') || !styled.text.includes('kit cost'))
+    throw Error('picker did not reach the router: ' + JSON.stringify(styled))
+  const state = await page.evaluate(()=>({requests:window.receipts, warning:document.body.innerText,
     imgLoaded:document.querySelector('img')?.naturalWidth===652}))
   if (!state.imgLoaded || !state.warning.includes('Active s2') || state.warning.includes('Active s1') ||
       state.requests[0]!=='/current?session_id=s1' || state.requests[1]!=='/current?session_id=s2') throw Error(JSON.stringify(state))
