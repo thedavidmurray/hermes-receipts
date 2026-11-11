@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "population": "controlled local fixture, NOT fleet telemetry or holdout",
+  "scenarios": {
+    "all_outcomes": {
+      "completion": "supported",
+      "criteria": {
+        "0": "supported",
+        "1": "supported",
+        "2": "supported"
+      }
+    },
+    "absent_push": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "supported",
+        "1": "supported",
+        "2": "unverified"
+      }
+    },
+    "absent_push_readback": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "supported",
+        "1": "supported",
+        "2": "contradicted"
+      }
+    },
+    "wrong_target": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "unverified",
+        "1": "supported",
+        "2": "supported"
+      }
+    },
+    "stale_test_version": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "supported",
+        "1": "unverified",
+        "2": "supported"
+      }
+    },
+    "future_test": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "supported",
+        "1": "unverified",
+        "2": "supported"
+      }
+    },
+    "wrong_profile": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "supported",
+        "1": "unverified",
+        "2": "supported"
+      }
+    },
+    "failed_then_repaired": {
+      "completion": "supported",
+      "criteria": {
+        "0": "supported",
+        "1": "supported",
+        "2": "supported"
+      }
+    },
+    "wrapper_missing_artifact": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "contradicted",
+        "1": "supported",
+        "2": "supported"
+      }
+    },
+    "unlinked_multiturn": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "unverified",
+        "1": "unverified",
+        "2": "unverified"
+      }
+    },
+    "explicit_multiturn": {
+      "completion": "supported",
+      "criteria": {
+        "0": "supported",
+        "1": "supported",
+        "2": "supported"
+      }
+    },
+    "no_criteria": {
+      "completion": "unverified",
+      "criteria": {}
+    },
+    "no_evidence": {
+      "completion": "unverified",
+      "criteria": {
+        "0": "unverified",
+        "1": "unverified",
+        "2": "unverified"
+      }
+    }
+  },
+  "scenario_count": 13,
+  "all_expectations_passed": true,
+  "idempotent_receipt_and_store": true,
+  "remote_ref_and_artifact_oracles": true,
+  "gold_metrics": "unmeasured; independent blind verifier owns sealed holdout",
+  "release_status": "experimental, NOT v2 accepted",
+  "physical_print": "unverified hardware; PNG fallback only"
+}
