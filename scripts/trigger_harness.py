@@ -286,7 +286,6 @@ def main() -> int:
             'ascii_lines': len(text.splitlines()),
         }
 
-    facts['digest_cron'] = triggers.cron_line(config)
     facts['triggers'] = config.triggers.table()
     facts['include'] = config.include.describe()
     facts['state_file'] = str(triggers.state_path())

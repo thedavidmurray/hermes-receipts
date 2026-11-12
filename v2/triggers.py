@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import contextvars
 import logging
 import os
 import re
@@ -76,7 +77,7 @@ HOOK_SOURCES: dict[str, tuple[str, str]] = {
     'subagent_stop': ('subagent_stop', 'direct'),
     'task_blocked': ('kanban_task_blocked', 'direct'),
     'digest': ('(no hook: deliberately never self-schedules)',
-               '`hermes receipt triggers --cron` prints the line to install'),
+               'reserved: no digest runner is provided'),
 }
 #: Which real hook names this plugin registers for triggers.
 REGISTERED_HOOKS: tuple[str, ...] = ('kanban_task_completed', 'kanban_task_blocked', 'on_session_end',
@@ -117,14 +118,13 @@ EXAMPLE_TRIGGERS = '''\
 #   interactive_session_end: {enabled: false, when: "min_claims 1"}
 #   subagent_stop: {enabled: false}                   # rolls up into the parent receipt
 #   task_blocked: {enabled: false}
-#   digest: {enabled: false}                          # prints a cron line; never schedules
+#   digest: {enabled: false}                          # reserved; no runner provided
 #
 # A printer destination needs the USB ids, so a print can never pick a wrong device:
 #   on_demand:
 #     destinations: {local: true, chat: true, printer: true, device: [0x04b8, 0x0202]}
 #
-# The digest trigger never schedules itself. `hermes receipt triggers --cron` prints
-# the exact line to install in crontab.
+# Digest is reserved; enabling it does not run or schedule anything.
 '''
 
 _TRIGGER_DIR = 'trigger-receipts'
@@ -586,11 +586,8 @@ def _goal_card(task_id: str | None, kwargs: Mapping) -> bool:
         return explicit
     if not task_id:
         return False
-    db = os.environ.get('HERMES_KANBAN_DB')
-    home = os.environ.get('HERMES_HOME')
-    candidates = [Path(db).expanduser()] if db else []
-    if home:
-        candidates.append(Path(home) / 'kanban.db')
+    from hermes_constants import get_hermes_home
+    candidates = [get_hermes_home() / 'kanban.db']
     for path in candidates:
         if not path.is_file():
             continue
@@ -880,20 +877,9 @@ class Evidence:
 
 
 def _state_db() -> Path | None:
-    home = os.environ.get('HERMES_HOME')
-    candidates: list[Path] = []
-    if home:
-        candidates.append(Path(home) / 'state.db')
-    try:
-        from hermes_constants import get_hermes_home  # type: ignore
-        candidates.append(Path(get_hermes_home()) / 'state.db')
-    except Exception:
-        pass
-    candidates.append(Path.home() / '.hermes' / 'state.db')
-    for path in candidates:
-        if path.is_file():
-            return path
-    return None
+    from hermes_constants import get_hermes_home
+    path = get_hermes_home() / 'state.db'
+    return path if path.is_file() else None
 
 
 def read_evidence(session_id: str | None = None, turn_id: int | None = None) -> Evidence:
@@ -1285,7 +1271,10 @@ def fire(hook_name: str, /, **kwargs) -> Any:
     except Exception:
         LOG.debug('receipt stamp skipped', exc_info=True)
     try:
-        thread = threading.Thread(target=_safe_execute, args=(hook_name, dict(kwargs)),
+        # Multiplexed profiles use ContextVars, not process-global HERMES_HOME.
+        # Capture on the hook thread before the host resets its profile context.
+        context = contextvars.copy_context()
+        thread = threading.Thread(target=context.run, args=(_safe_execute, hook_name, dict(kwargs)),
                                   name=f'receipts-{hook_name}', daemon=True)
         thread.start()
     except Exception:
@@ -1311,6 +1300,8 @@ def on_demand(session_id: str | None = None, turn_id: int | None = None, *, plat
     Used by ``/receipt``, the CLI and the pane button, so one configuration governs
     requested receipts and automatic ones alike.
     """
+    if not session_id and platform != 'cli':
+        return None  # only the explicitly local operator CLI may read profile-wide history
     loaded_triggers, loaded_include = load_trigger_config()
     config = config or loaded_triggers
     include = include or loaded_include
@@ -1334,32 +1325,3 @@ def on_demand(session_id: str | None = None, turn_id: int | None = None, *, plat
     return {'trigger': 'on_demand', 'fired': True, 'reason': decision.reason,
             'claims': len(claims), 'text': rendered.text,
             'png': str(rendered.png) if rendered.png else None, 'deliveries': deliveries}
-
-
-# ── the digest trigger's documented cron line ──────────────────────────────
-DIGEST_CRON = ('0 8 * * * cd {root} && {python} scripts/digest.py '
-               '--report-db {report_db} --png {png}')
-DIGEST_PNG = '~/receipts/digest-$(date +%F).png'
-
-
-def cron_line(config: TriggerConfig | None = None, *, root: str | None = None,
-              python: str | None = None, report_db: str | None = None,
-              png: str | None = None) -> str:
-    """The documented line for the ``digest`` trigger. It never self-schedules.
-
-    Returns a comment line when the trigger is off, so an operator sees the state
-    rather than an unexplained empty crontab entry.
-    """
-    config = config or load_trigger_config()[0]
-    # Accept a ReceiptConfig too: it carries the same validated `triggers:` block.
-    spec = getattr(config, 'triggers', config).spec('digest')
-    base = Path(root) if root else Path(__file__).resolve().parents[1]
-    values = {'root': str(base), 'python': python or 'python3',
-              'report_db': report_db or '~/.hermes/receipt-printer/digest.db', 'png': png or DIGEST_PNG}
-    line = DIGEST_CRON.format(**values)
-    if not spec.enabled:
-        return f'# receipts digest trigger is OFF (triggers.digest.enabled: false); nothing scheduled\n# {line}'
-    header = '# receipts digest: enabled. Install this line yourself; the plugin never schedules.'
-    if not line.endswith('\n'):
-        line += '\n'
-    return f'{header}\n{line}'

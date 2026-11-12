@@ -30,7 +30,6 @@
     }
   },
   "config_source": "receipts.yaml",
-  "digest_cron": "# receipts digest: enabled. Install this line yourself; the plugin never schedules.\n0 8 * * * cd /Users/djm/claude-projects/github-repos/hermes-receipts/.worktrees/triggers && python3 scripts/digest.py --report-db ~/.hermes/receipts/digest.db --png ~/receipts/digest-$(date +%F).png\n",
   "hooks_registered": [
     "agent_loop_stopped",
     "kanban_task_blocked",
@@ -429,7 +428,7 @@
       "columns": null,
       "cooldown": 0,
       "dedupe": true,
-      "derived": "`hermes receipt triggers --cron` prints the line to install",
+      "derived": "reserved: no digest runner is provided",
       "destinations": {
         "chat": false,
         "device": null,

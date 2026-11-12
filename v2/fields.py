@@ -27,6 +27,7 @@ import math
 import os
 import re
 import subprocess
+from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -162,15 +163,16 @@ _PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 def config_dir() -> Path:
     """Directory users drop their own ``kits/``, ``themes/`` and ``receipts.yaml`` into.
 
-    Keyed on the plugin's own name (``~/.hermes/<plugin>/``). The plugin shipped as
+    Keyed on the plugin's name under the active profile's Hermes home. It shipped as
     ``receipts`` before the catalog rename, so an existing install's dir — its config,
     custom kits/themes and trigger state — is adopted until the new dir exists.
     """
     configured = os.environ.get('HERMES_RECEIPTS_CONFIG_DIR')
     if configured:
         return Path(configured).expanduser()
-    current = Path.home() / '.hermes' / 'receipt-printer'
-    legacy = Path.home() / '.hermes' / 'receipts'
+    from hermes_constants import get_hermes_home
+    current = get_hermes_home() / 'receipt-printer'
+    legacy = get_hermes_home() / 'receipts'
     return legacy if legacy.is_dir() and not current.is_dir() else current
 
 
@@ -358,7 +360,34 @@ def render_field(name: str, view: Mapping) -> str:
 
 
 # ── kits ───────────────────────────────────────────────────────────────────
-KITS: dict[str, dict] = {}
+_ASSETS: ContextVar[tuple[Path, dict, dict] | None] = ContextVar('receipt_assets', default=None)
+
+
+class _ProfileAssets(Mapping[str, dict]):
+    """Stable mapping view; custom assets never become process-global state."""
+
+    def __init__(self, index: int):
+        self.index = index
+
+    def _values(self) -> dict:
+        assets = _ASSETS.get()
+        if assets is None or assets[0] != config_dir():
+            reload()
+            assets = _ASSETS.get()
+        assert assets is not None
+        return assets[1] if self.index == 1 else assets[2]
+
+    def __getitem__(self, name):
+        return self._values()[name]
+
+    def __iter__(self):
+        return iter(self._values())
+
+    def __len__(self):
+        return len(self._values())
+
+
+KITS: Mapping[str, dict] = _ProfileAssets(1)
 
 
 def validate_sections(names: Iterable[str] | str) -> tuple[str, ...]:
@@ -446,10 +475,10 @@ def reload(config: Path | str | None = None) -> None:
     host restart. Loading is best-effort for *unrelated* files; a malformed user
     file is skipped rather than breaking the plugin.
     """
-    global KITS, THEMES
     user_dir = Path(config).expanduser() if config else config_dir()
-    KITS = {**_load_json_dir(_BUILTIN_KITS_DIR), **_load_json_dir(user_dir / 'kits')}
-    THEMES = {**_load_json_dir(_BUILTIN_THEMES_DIR), **_load_json_dir(user_dir / 'themes')}
+    _ASSETS.set((config_dir(),
+                 {**_load_json_dir(_BUILTIN_KITS_DIR), **_load_json_dir(user_dir / 'kits')},
+                 {**_load_json_dir(_BUILTIN_THEMES_DIR), **_load_json_dir(user_dir / 'themes')}))
 
 
 def select_fields(public: Mapping, kit: str | None = None) -> list[str]:
@@ -501,7 +530,7 @@ def auto_kit_fields(categories: Mapping) -> list[str]:
 
 
 # ── themes ─────────────────────────────────────────────────────────────────
-THEMES: dict[str, dict] = {}
+THEMES: Mapping[str, dict] = _ProfileAssets(2)
 
 _FALLBACK_THEME = {
     'name': 'thermal-classic', 'frame': '#272727', 'paper': '#f4efdf', 'ink': '#222620',

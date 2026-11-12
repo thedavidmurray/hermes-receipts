@@ -66,10 +66,21 @@ def _source_db():
     return get_hermes_home() / 'state.db'
 
 
+def _runtime_setting(name):
+    """Profile YAML wins; env switches remain deprecated for the 0.2.x transition."""
+    from .v2.config import load_config
+    config = load_config()
+    if config is not None and name in config.runtime:
+        return config.runtime[name]
+    if name == 'gate':
+        return 'block' if os.environ.get('HERMES_RECEIPTS_GATE') == 'block' else 'observe'
+    return os.environ.get(f'HERMES_RECEIPTS_{name.upper()}') == '1'
+
+
 def _receipt(session_id=None, turn_id=None):
     return receipt_from_state(_source_db(), session_id=session_id or None, turn_id=turn_id,
                               ledger_path=data_dir() / 'data.db',
-                              classify_jev=os.environ.get('HERMES_RECEIPTS_JEV') == '1')
+                              classify_jev=bool(_runtime_setting('jev')))
 
 
 def _image(receipt):
@@ -82,7 +93,9 @@ def _slash(raw_args, session_id='', **kwargs):
     arg = raw_args.strip()
     if arg and not arg.isdigit():
         return 'Usage: /receipt [final message id]'
-    turn_id = int(arg) if arg else None  # latest profile turn by default
+    if not session_id:
+        return 'Receipt unavailable: caller session is required'
+    turn_id = int(arg) if arg else None  # latest answer in this session only
     try:
         # An on-demand receipt goes through the trigger engine, so `triggers.on_demand`
         # and `include:` govern a requested receipt exactly as they govern an automatic
@@ -94,7 +107,7 @@ def _slash(raw_args, session_id='', **kwargs):
     except Exception:
         LOG.exception('on-demand receipt failed; falling back to the legacy renderer')
     try:
-        receipt = _receipt(turn_id=turn_id)
+        receipt = _receipt(session_id=session_id, turn_id=turn_id)
         path = _image(receipt)
         return f"{render_text(receipt)}\nMEDIA:{path}"
     except (OSError, ValueError) as exc:
@@ -147,9 +160,9 @@ def _cli_handler(args):
 
 
 def _stamp(response_text='', session_id='', **kwargs):
-    if os.environ.get('HERMES_RECEIPTS_STAMP') != '1':
-        return None
     try:
+        if not session_id or not _runtime_setting('stamp'):
+            return None
         receipt = _receipt(session_id=session_id)
         claims = match_claims(response_text, receipt['rows'])
         ok = sum(c['verdict'] == '✓' for c in claims)
@@ -166,10 +179,11 @@ def _gate(tool_name='', args=None, session_id='', **kwargs):
     persisted turn, operators should review a block rather than treating it as
     proof that the current completion is wrong.
     """
-    if (tool_name != 'kanban_complete' or os.environ.get('HERMES_RECEIPTS_GATE') != 'block'
-            or not session_id):
+    if tool_name != 'kanban_complete' or not session_id:
         return None
     try:
+        if _runtime_setting('gate') != 'block':
+            return None
         receipt = _receipt(session_id=session_id)
     except (OSError, ValueError):
         return None

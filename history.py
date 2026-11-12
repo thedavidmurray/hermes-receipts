@@ -56,7 +56,10 @@ def _contents(text):
 
 def receipt_from_state(db_path: Path, session_id: str | None = None, turn_id: int | None = None,
                        ledger_path: Path | None = None, classify_jev: bool = False) -> dict:
-    """Find any final answer by id; past turns work immediately, without import or migration."""
+    """Find a final answer; an explicit session scopes IDs as well as latest reads.
+
+    A session-less lookup is reserved for the local operator CLI, never chat.
+    """
     db_path = Path(db_path).expanduser().resolve(strict=True)
     # SQLite URI mode=ro guarantees this function does not create or mutate the source.
     conn = sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True)
@@ -64,6 +67,8 @@ def receipt_from_state(db_path: Path, session_id: str | None = None, turn_id: in
     try:
         if turn_id is not None:
             final = conn.execute("SELECT id,session_id,content,timestamp FROM messages WHERE id=? AND role='assistant' AND content IS NOT NULL AND trim(content)<>'' AND tool_calls IS NULL", (turn_id,)).fetchone()
+            if final is not None and session_id and final['session_id'] != session_id:
+                final = None
         elif session_id:
             final = conn.execute("SELECT id,session_id,content,timestamp FROM messages WHERE session_id=? AND role='assistant' AND content IS NOT NULL AND trim(content)<>'' AND tool_calls IS NULL ORDER BY id DESC LIMIT 1", (session_id,)).fetchone()
         else:

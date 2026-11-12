@@ -29,7 +29,7 @@ from .public import to_public_receipt, to_public_report, verify_receipt_hash
 from .render import public_text, render_task_png, render_report_png
 from .store import upsert_run, query_coverage, query_rollup
 from .tasks import judge_task
-from .triggers import cron_line, load_trigger_config, on_demand, read_outbox, state_path
+from .triggers import load_trigger_config, on_demand, read_outbox, state_path
 
 
 def _time(value):
@@ -77,14 +77,11 @@ def setup(sub):
     report.add_argument('--end', help='Optional UTC ISO8601 upper bound; defaults to stored finals maximum + 1s')
     _add_style(report)
     sub.add_parser('options', help='List the available kits, themes and fields as JSON')
-    triggers = sub.add_parser('triggers', help='Automatic triggers: defaults, cron line, outbox')
+    triggers = sub.add_parser('triggers', help='Automatic triggers: defaults, outbox')
     triggers.set_defaults(receipt_triggers_action='show')
     triggers.add_argument('--show', dest='receipt_triggers_action', action='store_const',
                           const='show',
                           help='Print every trigger\'s resolved settings as JSON (the default)')
-    triggers.add_argument('--cron', dest='receipt_triggers_action', action='store_const',
-                          const='cron',
-                          help='Print the crontab line for the digest trigger (it never self-schedules)')
     triggers.add_argument('--outbox', dest='receipt_triggers_action', action='store_const',
                           const='outbox',
                           help='Print chat deliveries that a hook could not reply with inline')
@@ -267,6 +264,7 @@ def _config(args):
         'printer': dict(config.printer),
         'triggers': config.triggers.table(),
         'include': config.include.describe(),
+        'runtime': dict(config.runtime),
     }
     print(json.dumps(resolved, indent=2, sort_keys=True))
     return 0
@@ -274,9 +272,6 @@ def _config(args):
 
 def _triggers(args):
     config, include = load_trigger_config(getattr(args, 'config', None))
-    if args.receipt_triggers_action == 'cron':
-        print(cron_line(config))
-        return 0
     if args.receipt_triggers_action == 'outbox':
         rows = read_outbox()
         print(json.dumps(rows, indent=2, sort_keys=True))

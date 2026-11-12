@@ -42,7 +42,22 @@ Task manifests must provide a linked `done` claim, explicit required criteria an
 
 Optional: `hermes receipt last --print-usb 0xVVVV 0xPPPP` uses `python-escpos>=3,<4` installed separately. It fails with a readable error if the package, printer or USB permissions are absent. This is never automatic.
 
-The optional response stamp is **off**: `HERMES_RECEIPTS_STAMP=1` enables a legacy `🧾 n✓ m✗` suffix, not a v2 task judgment. `transform_llm_output` uses first-non-None-wins arbitration; other response transforms can conflict. The optional `pre_tool_call` gate is **observe-only by default**: setting `HERMES_RECEIPTS_GATE=block` blocks `kanban_complete` only when the *last persisted answer of the same session* has an unbacked v1 claim; missing session IDs and missing history fail open. This is a review prompt, not proof of current-turn failure, and does not approve any tool. Do not enable the legacy stamp or gate for the v2 demo; they can conflict with other transforms or block from stale answer text.
+The optional response stamp is **off**: `runtime.stamp: true` in `receipts.yaml` enables a legacy `🧾 n✓ m✗` suffix, not a v2 task judgment. `transform_llm_output` uses first-non-None-wins arbitration; other response transforms can conflict. The optional `pre_tool_call` gate is **observe-only by default**: `runtime.gate: block` blocks `kanban_complete` only when the *last persisted answer of the same session* has an unbacked v1 claim; missing session IDs and missing history fail open. This is a review prompt, not proof of current-turn failure, and does not approve any tool. Do not enable the legacy stamp or gate for the v2 demo; they can conflict with other transforms or block from stale answer text.
+
+```yaml
+runtime:
+  jev: false
+  stamp: false
+  gate: observe
+```
+
+YAML settings take precedence. `HERMES_RECEIPTS_JEV=1`, `HERMES_RECEIPTS_STAMP=1`
+and `HERMES_RECEIPTS_GATE=block` remain deprecated fallbacks for 0.2.x only.
+`HERMES_RECEIPTS_CONFIG_DIR` remains a deprecated bootstrap directory override;
+it cannot live in the file it locates. Default configuration, trigger state and
+receipts resolve under `get_hermes_home()` for the active profile, never another
+profile's legacy directory. Local operator CLI commands may explicitly select
+other history; chat `/receipt [id]` requires and stays within its caller session.
 
 ## How to read this
 
@@ -52,17 +67,18 @@ The tool hook writes `tool name`, `args SHA-256`, a coarse action category, stat
 
 ## Disclosure (catalog rule 13)
 
-- **Outside reads:** by default only the current profile's `state.db` read-only; an **explicit local** `receipt fleet --roots ...` opt-in also reads state DBs under the selected roots, possibly including other profiles. Message text, conversation history, tool arguments and results can contain secrets and are processed in memory. The local `task --manifest` checks for itself, only when the manifest asks: it re-runs the manifest's own test argv, hashes the named files, and probes an explicitly named local bare Git remote read-only. No browser login, implicit cross-profile scan or remote probe.
+- **Outside reads:** the current profile's `state.db` read-only and, for goal-mode detection, its `kanban.db` read-only; an **explicit local** `receipt fleet --roots ...` opt-in also reads state DBs under the selected roots, possibly including other profiles. Message text, conversation history, tool arguments and results can contain secrets and are processed in memory. The local `task --manifest` CLI hashes explicitly named files and probes an explicitly named local bare Git remote read-only. It refuses test criteria: those need a trusted in-process caller. No browser login, implicit cross-profile scan or network remote probe.
 - **Stored data and retention:** v1 keeps a profile-scoped SQLite ledger and private PNGs under `plugin-data/receipt-printer/`. Legacy v1 `/receipt`, `last` and `verify` outputs contain answer excerpts, basenames, ids and hashes: **PRIVATE, review before sharing**. The v2 fleet writes sanitized, versioned metadata and coverage to the user-chosen `--report-db`; reports and task PNGs remain at the user-chosen output path **until the user deletes them**. The current-session public pane PNG is generated in memory. Private manifest/DB files may identify sessions or tasks and should be kept separate from shareable PNGs; no automatic expiry/deletion or pseudonym map is provided. Args SHA-256 hashes in v1 may be guessable for low-entropy inputs. Do not distribute private manifest/report DB.
-- **Network/telemetry/inference:** deterministic v1/v2 receipt checks initiate no network requests, metrics export, model calls, remote attestation or self-update. The separately documented, default-off `HERMES_RECEIPTS_JEV=1` classifier can send redacted in-memory context to an external API; see the opt-in disclosure below. Images use local bundled/system fonts. The Desktop pane calls only the authenticated local plugin route.
-- **Shell/USB:** it only runs the checks you configure, never the agent's commands. A manifest's check re-runs the user's own test command (a trusted argv, never a shell string or the agent's text; 120 s timeout, output discarded, file bytes must match before and after), hashes the named files, and runs read-only `git rev-parse` / `git rev-list` against an explicitly named local bare remote with no fetch. Nothing runs unless a manifest asks for it. Explicit fleet scans stream read-only transactions and may report partial/unavailable coverage. User-invoked `--print-usb` accesses the specified printer through the optional third-party `python-escpos` library and requires USB permission. Submission ACK does **not** confirm paper; without observed hardware the deliverable is PNG only.
+- **Network/telemetry/inference:** deterministic v1/v2 receipt checks initiate no network requests, metrics export, model calls, remote attestation or self-update. The separately documented, default-off `runtime.jev: true` classifier can send redacted in-memory context to an external API; see the opt-in disclosure below. Images use local bundled/system fonts. The Desktop pane calls only the authenticated local plugin route.
+- **Subprocess/USB:** `v2/fields.py` runs `git -C <plugin-root> rev-parse --short=12 HEAD` for the displayed plugin version (3 s timeout). Explicit local bare-remote probes in `v2/evidence.py` run `git --git-dir <path> rev-parse --is-bare-repository` (5 s) and `git --git-dir <path> rev-list --all` (10 s), with no fetch. Its library-only `run_bound_test` runs an argv supplied by a trusted in-process caller, not by the manifest CLI or agent text (no shell, 120 s timeout, output captured and discarded, artifact bytes must match before and after). No manifest test argv is executed by the CLI. Explicit fleet scans stream read-only transactions and may report partial/unavailable coverage. User-invoked `--print-usb` or an explicitly configured trigger printer destination accesses the specified device through optional third-party `python-escpos`, requiring USB permission. Submission ACK does **not** confirm paper; without observed hardware the deliverable is PNG only.
 - **Credentials:** none stored or read from another client's login. Installing from GitHub is Hermes's normal plugin manager operation, not the plugin's own network call.
 - **Approvals:** never approves tools. Optional `pre_tool_call` blocking is off by default and only reviews the prior persisted answer for unbacked claims in the same session; it is not a current-turn proof. The legacy stamp is also off by default.
 - **Desktop:** SDK current-session pane and authenticated profile-scoped backend route; no per-turn DOM button or fleet web API. A missing/mismatched session is rejected; the pane cannot claim supported completion without an explicit task manifest.
 
 ## Optional Jev classification — off by default
 
-`HERMES_RECEIPTS_JEV=1` explicitly opts the receipt-generation process into an
+`runtime.jev: true` in `receipts.yaml` (deprecated fallback: `HERMES_RECEIPTS_JEV=1`)
+explicitly opts the receipt-generation process into an
 **external API** call with sampled assistant text, tool arguments (including
 completion-tool claims) and tool results. Secret assignments are masked and
 `jevkit.privacy.redact` runs **before sending**. Redaction is heuristic, not
@@ -295,19 +311,18 @@ triggers:
   prints when the text declares at least `N` claims (also spelled
   `when: {min_claims: N}` or `min_claims: N`).
 * **Destinations:** `local` is the PNG history store
-  (`~/.hermes/receipt-printer/trigger-receipts`) and is on for every trigger. `chat` replies
+  (`get_hermes_home()/receipt-printer/trigger-receipts` under the active profile) and is on for every trigger. `chat` replies
   in the origin chat — an ASCII code block on Discord, the PNG elsewhere. `printer` is
   opt-in and **requires** `device: [vendor, product]`, so an automatic print can never
   pick the wrong device. `file` exports the PNG to a path.
 * `hermes receipt triggers --show` prints every resolved setting as JSON; `--outbox`
   prints chat deliveries a hook could not reply with inline.
 
-### The digest never self-schedules
+### Digest is reserved
 
-`digest` is off by default and observes no hook. Turning it on makes
-`hermes receipt triggers --cron` print the exact crontab line to install (it prints a
-commented line when the trigger is off, so an empty crontab is never a mystery). The
-plugin never writes a cron entry, never spawns a scheduler and never opens a socket.
+`digest` is a reserved, disabled trigger with no runner and no hook. Enabling it
+does not generate a digest. No scheduling command or cron entry is provided.
+Use the explicit local `receipt report` command for stored report evidence.
 
 ### What is in a receipt (`include:`)
 

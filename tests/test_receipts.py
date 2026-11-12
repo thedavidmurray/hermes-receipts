@@ -81,7 +81,7 @@ def test_gateway_slash_media_is_deliverable(historical_db, monkeypatch):
     monkeypatch.setenv('HERMES_HOME', str(historical_db.parent))
     monkeypatch.setenv('HERMES_RECEIPTS_CONFIG_DIR', str(historical_db.parent / 'cfg'))
     fields.reload()
-    reply = plugin._slash('8')
+    reply = plugin._slash('8', session_id='s1')
     media, cleaned = BasePlatformAdapter.extract_media(reply)
     assert len(media) == 1 and Path(media[0][0]).is_file()
     # `/receipt` now renders through the on_demand trigger, so the reply is the same
@@ -239,7 +239,7 @@ def test_config_dir_adopts_the_pre_rename_directory(tmp_path, monkeypatch):
     """The plugin config dir moves with the name, but an old install's dir is adopted."""
     from receipt_printer_test_package.v2 import fields
     monkeypatch.delenv('HERMES_RECEIPTS_CONFIG_DIR', raising=False)
-    monkeypatch.setenv('HOME', str(tmp_path))
+    monkeypatch.setenv('HERMES_HOME', str(tmp_path / '.hermes'))
     legacy = tmp_path / '.hermes' / 'receipts'
     legacy.mkdir(parents=True)
     assert fields.config_dir() == legacy

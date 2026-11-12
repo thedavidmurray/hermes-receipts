@@ -414,6 +414,21 @@ def _parse_footer(raw: Any, source: str) -> dict[str, str]:
             if 'thanks' in mapping else {})
 
 
+def _parse_runtime(raw: Any, source: str) -> dict[str, Any]:
+    if raw is None:
+        return {}
+    mapping = _as_mapping(raw, source, 'runtime')
+    result = {}
+    for key, value in mapping.items():
+        if key in ('jev', 'stamp'):
+            result[key] = _as_bool(value, source, f'runtime.{key}')
+        elif key == 'gate' and value in ('observe', 'block'):
+            result[key] = value
+        else:
+            raise _fail(source, f'runtime.{key}', 'expected jev/stamp boolean or gate: observe|block')
+    return result
+
+
 # ── the config object ──────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class ReceiptConfig:
@@ -435,6 +450,7 @@ class ReceiptConfig:
     printer: Mapping[str, Any] = dataclass_field(default_factory=dict)
     triggers: TriggerConfig = DEFAULT_TRIGGER_CONFIG
     include: IncludeConfig = DEFAULT_INCLUDE
+    runtime: Mapping[str, Any] = dataclass_field(default_factory=dict)
     source: str | None = None
 
     # -- geometry ----------------------------------------------------------
@@ -504,7 +520,7 @@ def parse_config(raw: Mapping, source: str = CONFIG_FILENAME,
     mapping = _as_mapping(raw, source, CONFIG_FILENAME)
     known = {'schema_version', 'kit', 'theme', 'fields', 'paper', 'columns', 'sections', 'order',
              'header', 'footer', 'extra_fields', 'logo', 'barcode', 'barcode_url', 'printer',
-             'triggers', 'include'}
+             'triggers', 'include', 'runtime'}
     unknown = sorted(set(mapping) - known)
     if unknown:
         raise _fail(source, unknown[0], f'unknown key (known: {", ".join(sorted(known))})')
@@ -558,7 +574,7 @@ def parse_config(raw: Mapping, source: str = CONFIG_FILENAME,
         footer=_parse_footer(mapping.get('footer'), source), extra_fields=extra_fields,
         logo=logo, barcode=barcode, barcode_url=barcode_url,
         printer=_parse_printer(mapping.get('printer'), source), triggers=triggers,
-        include=include, source=source)
+        include=include, runtime=_parse_runtime(mapping.get('runtime'), source), source=source)
 
 
 def config_file() -> Path:
@@ -623,6 +639,12 @@ EXAMPLE_CONFIG = '''\
 # This file is validated on load and any bad key is reported by name.
 
 schema_version: 2
+
+# -- runtime switches (defaults shown; old env switches are deprecated) ------
+# runtime:
+#   jev: false          # optional local Jev metadata classification
+#   stamp: false        # legacy answer stamp (separate from triggers.claim_check.stamp)
+#   gate: observe       # observe | block (advisory prior-answer completion gate)
 
 # -- content ---------------------------------------------------------------
 # kit: full            # minimal | verify | cost | ops | full | auto | your kit

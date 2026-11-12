@@ -116,7 +116,7 @@ def test_defaults_table_names_the_real_hook_and_the_derivation():
         'no goal-loop hook' in table['goal_complete']['derived']
     assert 'no cron hook' in table['unattended_session_end']['derived']
     assert 'never self-schedules' in table['digest']['hook'] and \
-        '--cron' in table['digest']['derived']
+        'no digest runner' in table['digest']['derived']
 
 
 def test_triggers_reject_an_unknown_key_by_name():
@@ -219,13 +219,16 @@ def test_unattended_and_interactive_session_ends_are_separated():
 
 
 def test_no_hook_and_no_event_can_fire_the_digest():
-    """The digest never self-schedules: no hook derives it, and the cron line is printed."""
+    """Digest is reserved: no hook derives it and there is no scheduling command."""
     for hook in triggers.REGISTERED_HOOKS:
         assert all(event.trigger != 'digest' for event in events_for_hook(hook, {}))
-    off = triggers.cron_line(_config())
-    assert 'OFF' in off and 'nothing scheduled' in off
-    on = triggers.cron_line(_config(triggers={'digest': {'enabled': True}}))
-    assert on.startswith('# receipts digest: enabled') and '0 8 * * *' in on
+    import argparse
+    from ..v2.cli import setup
+    parser = argparse.ArgumentParser()
+    setup(parser.add_subparsers())
+    assert not hasattr(triggers, 'cron_line')
+    with pytest.raises(SystemExit):
+        parser.parse_args(['triggers', '--cron'])
 
 
 def test_agent_loop_stopped_records_and_never_prints(tmp_path):
