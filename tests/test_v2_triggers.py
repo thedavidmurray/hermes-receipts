@@ -223,7 +223,7 @@ def test_no_hook_and_no_event_can_fire_the_digest():
     for hook in triggers.REGISTERED_HOOKS:
         assert all(event.trigger != 'digest' for event in events_for_hook(hook, {}))
     import argparse
-    from ..v2.cli import setup
+    from receipt_trigger_package.v2.cli import setup
     parser = argparse.ArgumentParser()
     setup(parser.add_subparsers())
     assert not hasattr(triggers, 'cron_line')
