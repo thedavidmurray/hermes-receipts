@@ -1,6 +1,6 @@
 name: receipt-printer
 repo: https://github.com/thedavidmurray/hermes-receipts
-sha: c896731f1fdd936c03943d8c50a509e1cc9abd61
+sha: 2b036f84f6dda3f6d361e3f91e1fe4c7282d8e26
 title: Receipts
 description: >-
   Your agent says it's done. Get the receipt. Receipts detects action and completion
@@ -35,10 +35,10 @@ requires_hermes: ">=0.21.7"
 docs_url: https://github.com/thedavidmurray/hermes-receipts
 version: "0.2.1"
 screenshots:
-  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/c896731f1fdd936c03943d8c50a509e1cc9abd61/assets/kits/contact-sheet.png
-  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/c896731f1fdd936c03943d8c50a509e1cc9abd61/assets/custom/shop-58mm-dot-matrix.png
-  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/c896731f1fdd936c03943d8c50a509e1cc9abd61/assets/integration/task-before.png
-  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/c896731f1fdd936c03943d8c50a509e1cc9abd61/assets/integration/task-after.png
+  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/2b036f84f6dda3f6d361e3f91e1fe4c7282d8e26/assets/kits/contact-sheet.png
+  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/2b036f84f6dda3f6d361e3f91e1fe4c7282d8e26/assets/custom/shop-58mm-dot-matrix.png
+  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/2b036f84f6dda3f6d361e3f91e1fe4c7282d8e26/assets/integration/task-before.png
+  - https://raw.githubusercontent.com/thedavidmurray/hermes-receipts/2b036f84f6dda3f6d361e3f91e1fe4c7282d8e26/assets/integration/task-after.png
 readme: true
 platforms: []
 capabilities:
