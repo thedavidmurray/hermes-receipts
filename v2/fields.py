@@ -154,6 +154,16 @@ def _safe_ink(paper: str) -> str:
     return '#111111' if luminance(paper) > 0.5 else '#f5f5f5'
 
 
+def bar_color(theme: Mapping) -> str:
+    """Theme bar override, or paper blended 6% toward ink (sRGB channels)."""
+    if 'bar' in theme:
+        return theme['bar']
+    paper, ink = theme['paper'], theme['ink']
+    channels = [round(int(paper[i:i + 2], 16) * 0.94 + int(ink[i:i + 2], 16) * 0.06)
+                for i in (1, 3, 5)]
+    return '#' + ''.join(f'{channel:02x}' for channel in channels)
+
+
 # ── paths ──────────────────────────────────────────────────────────────────
 _BUILTIN_KITS_DIR = Path(__file__).resolve().parent / 'kits'
 _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent / 'themes'
@@ -548,7 +558,7 @@ THEME_KEYS = frozenset({
     'name', 'schema_version', 'description', 'frame', 'paper', 'ink', 'ink_muted',
     'ink_supported', 'ink_contradicted', 'ink_unverified', 'ink_not_evaluable', 'mono',
     'glyph_set', 'font', 'perforation', 'edge_style', 'green_bar', 'brand_text',
-    'font_size', 'line_spacing',
+    'font_size', 'line_spacing', 'bar',
 })
 
 
@@ -568,7 +578,7 @@ def load_theme(name: str | None = None) -> dict:
     illegible or (outside a declared monochrome theme) indistinguishable.
     """
     if not name:
-        return dict(_FALLBACK_THEME)
+        return {**_FALLBACK_THEME, 'bar': bar_color(_FALLBACK_THEME)}
     raw = THEMES.get(name)
     if raw is None:
         raise ThemeError(f'unknown receipt theme: {name} (available: {", ".join(theme_names())})')
@@ -630,6 +640,12 @@ def load_theme(name: str | None = None) -> dict:
     if not isinstance(green_bar, bool):
         raise ThemeError(f'theme {name!r} key "green_bar" must be a boolean')
     theme['green_bar'] = green_bar
+    if 'bar' in raw:
+        value = raw['bar']
+        if not isinstance(value, str) or not _HEX.fullmatch(value):
+            raise ThemeError(f'theme {name!r} key "bar" must be #rrggbb')
+        theme['bar'] = value.lower()
+    theme['bar'] = bar_color(theme)
     inks = {verdict: theme['ink_' + verdict] for verdict in VERDICT_WORDS}
     if mono:
         # One ink only. A mono theme may not smuggle a green in for `supported`.
