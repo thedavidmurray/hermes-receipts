@@ -1,7 +1,7 @@
 {
   "name": "dot-matrix",
   "schema_version": 2,
-  "description": "Continuous-form dot matrix: dotted 9-pin glyphs, tractor-feed perforations down both margins, alternating green bars.",
+  "description": "Continuous-form dot matrix: dotted 9-pin glyphs, tractor-feed perforations down both margins, alternating paper-tint bars.",
   "frame": "#cfd6cc",
   "paper": "#f7f8f2",
   "ink": "#1b2318",
