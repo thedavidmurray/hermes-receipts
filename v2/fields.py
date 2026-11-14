@@ -21,6 +21,7 @@ theme file.
 """
 from __future__ import annotations
 
+import colorsys
 import hashlib
 import json
 import math
@@ -570,6 +571,26 @@ def _forbidden_theme_keys(raw: Mapping) -> list[str]:
                         or str(key).strip().lower().startswith(THEME_FORBIDDEN_PREFIXES))})
 
 
+def _matches_colour_role(verdict: str, ink: str) -> bool:
+    """Code-owned hue families; a theme can tune shades, never swap meanings.
+
+    HSV degrees: supported green 90..165, contradicted red 345..15,
+    unverified amber 30..65. Chromatic roles require >=25% saturation;
+    not-evaluable is neutral (<=20%), including warm thermal greys.
+    Contrast remains an independent requirement against actual paper/bands.
+    """
+    rgb = tuple(int(ink[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    hue, saturation, _ = colorsys.rgb_to_hsv(*rgb)
+    degrees = hue * 360
+    if verdict == 'not_evaluable':
+        return saturation <= 0.20
+    if saturation < 0.25:
+        return False
+    return {'supported': 90 <= degrees <= 165,
+            'contradicted': degrees >= 345 or degrees <= 15,
+            'unverified': 30 <= degrees <= 65}[verdict]
+
+
 def load_theme(name: str | None = None) -> dict:
     """Normalized theme for *name*; validates the verdict-visibility invariant.
 
@@ -658,6 +679,8 @@ def load_theme(name: str | None = None) -> dict:
         if contrast_ratio(ink, theme['paper']) < MIN_VERDICT_CONTRAST:
             raise ThemeError(f'theme {name!r} {verdict} ink is below '
                              f'{MIN_VERDICT_CONTRAST:g}:1 against its paper')
+        if not mono and not _matches_colour_role(verdict, ink):
+            raise ThemeError(f'theme {name!r} {verdict} ink violates its code-owned colour role')
     return theme
 
 

@@ -13,6 +13,24 @@ inverse video only for a count above zero, including report counts and ASCII
 wrapping. A zero still prints the same verdict word, glyph and ink, without a
 failure rectangle.
 
+## Verdict colour roles
+
+Non-monochrome themes may tune shades, but not their semantic families. These
+roles are enforced in code: supported is green (HSV hue 90–165 degrees),
+contradicted is red (345–360 or 0–15), unverified is amber (30–65), and
+not-evaluable is neutral (saturation at most 20%). Chromatic roles require at
+least 25% saturation. Every verdict still needs its own ink and 4.5:1 paper
+contrast; swapping two otherwise legible inks is rejected. Declared monochrome
+themes use exactly the main ink for every verdict and retain words/glyphs.
+
+Keys beginning with hide, soften, suppress, mute, verdict, glyph, relabel,
+rename or remap are rejected, including unlisted family members. Only the exact
+`glyph_set` selector is exempt, and only for the code-owned ascii/unicode tables.
+
+`tests/test_v2_review_repairs.py` covers all four required verdicts on both row
+parities, all pairwise semantic-role swaps in both shipped colour themes,
+custom valid shades, forbidden-key families and the explicit glyph selector.
+
 ## Regression provenance
 
 The reported black-paper/mint-band PNG came from the verifier's synthetic
