@@ -593,13 +593,18 @@ def _read_mapping(path: Path) -> Mapping:
         except ValueError as exc:
             raise ConfigError(f'{path.name}: invalid JSON: {exc}') from exc
     try:
-        import yaml
-    except ImportError as exc:  # pragma: no cover - PyYAML ships with Hermes
-        raise ConfigError(f'{path.name}: reading YAML needs PyYAML, or use '
-                          f'{CONFIG_JSON_FILENAME}') from exc
+        from hermes_yaml import safe_load
+        from ruamel.yaml.error import YAMLError
+    except ImportError:
+        # Standalone or older runtimes may still provide PyYAML instead.
+        try:
+            from yaml import safe_load, YAMLError
+        except ImportError as exc:
+            raise ConfigError(f'{path.name}: reading YAML needs Hermes YAML support '
+                              f'or PyYAML, or use {CONFIG_JSON_FILENAME}') from exc
     try:
-        return yaml.safe_load(text)
-    except yaml.YAMLError as exc:
+        return safe_load(text)
+    except YAMLError as exc:
         raise ConfigError(f'{path.name}: invalid YAML: {getattr(exc, "problem", exc)}') from exc
 
 
