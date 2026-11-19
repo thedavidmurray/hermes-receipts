@@ -33,7 +33,8 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 from . import branding
 from .config import SECTIONS, CustomField
-from .fields import (DEFAULT_KIT, field_block, field_view, kit_experimental_kinds, kit_sections,
+from .fields import (DEFAULT_KIT, MIN_VERDICT_CONTRAST, bar_color, contrast_ratio, luminance,
+                     field_block, field_view, kit_experimental_kinds, kit_sections,
                      load_theme, validate_sections, verdict_glyph, verdict_ink, verdict_word,
                      worst_verdict)
 
@@ -74,6 +75,7 @@ class Line:
     verdict: str | None = None
     indent: int = 0
     payload: str | None = None   # barcode lines carry the text the bars encode
+    count: int | None = None     # None = claim/verdict; 0 must never imply an inverse failure
 
     def __post_init__(self) -> None:
         if self.kind == 'verdict' and self.verdict is None:
@@ -153,7 +155,7 @@ def _counts_section(public: Mapping, theme: Mapping) -> list[Line]:
         count = sum(1 for c in criteria if c.get('verdict') == verdict)
         # A statement count is coloured per category, never by its text.
         lines.append(Line(f'{verdict_word(verdict)} {verdict_glyph(verdict, glyph_set)}: {count}',
-                          kind='verdict', verdict=verdict))
+                          kind='verdict', verdict=verdict, count=count))
     return lines
 
 
@@ -235,7 +237,7 @@ def _report_lines(public: Mapping, sections: Sequence[str], theme: Mapping) -> l
                 count = int(counts.get(verdict, 0) or 0)
                 lines.append(Line(f'{label}: {verdict_word(verdict)} '
                                   f'{verdict_glyph(verdict, glyph_set)}  ({count})',
-                                  kind='verdict', verdict=verdict))
+                                  kind='verdict', verdict=verdict, count=count))
             lines.append(Line(f'  rate: {supported / classified:.1%}' if classified >= 10 else
                               '  rate: counts only (n<10)' if classified else '  rate: N/A',
                               kind='field'))
@@ -346,7 +348,7 @@ def receipt_lines(public: Mapping, *, kit: str | None = None, theme: str | None 
     if theme_obj['glyph_set'] == 'ascii':
         lines = [Line(fold_ascii(line.text), kind=line.kind, verdict=line.verdict,
                       indent=line.indent,
-                      payload=fold_ascii(line.payload) if line.payload else None)
+                      payload=fold_ascii(line.payload) if line.payload else None, count=line.count)
                  for line in lines]
     return lines
 
@@ -474,6 +476,18 @@ def _barcode_pixels(draw: ImageDraw.ImageDraw, line: Line, theme: Mapping, x: in
     return height, True
 
 
+def _readable_bar(lines: Sequence[Line], theme: Mapping) -> str | None:
+    """Paper furniture is optional: never band dark paper or obscure any text ink."""
+    if not theme['green_bar'] or luminance(theme['paper']) <= 0.5:
+        return None
+    bar = bar_color(theme)
+    # Barcodes can fall back to muted text after layout; include that ink too.
+    inks = {theme['ink'], theme['ink_muted'], *(_line_color(line, theme) for line in lines)}
+    if any(contrast_ratio(ink, bar) < MIN_VERDICT_CONTRAST for ink in inks):
+        return None
+    return bar
+
+
 def _draw(lines: Sequence[Line], theme: Mapping, output: str | Path | BytesIO, config=None):
     shape = geometry(theme, config)
     line_height, columns = shape['line_height'], shape['columns']
@@ -492,12 +506,13 @@ def _draw(lines: Sequence[Line], theme: Mapping, output: str | Path | BytesIO, c
     canvas = Image.new('RGB', (width, height + 40), theme['frame'])
     draw = ImageDraw.Draw(canvas)
     draw.rectangle((shape['paper_left'], 14, shape['paper_right'], height), fill=theme['paper'])
-    if theme['green_bar']:
+    bar = _readable_bar(lines, theme)
+    if bar is not None:
         for index in range(len(lines)):
             if index % 2:
                 top = shape['top'] - 8 + index * line_height
                 draw.rectangle((shape['paper_left'], top, shape['paper_right'], top + line_height - 2),
-                               fill='#e8f0e2')
+                               fill=bar)
     _paper_furniture(draw, theme, width, height, line_height)
     size = int(theme['font_size'])
     normal, bold = _font(size), _font(size + 1, True)
@@ -529,7 +544,8 @@ def _draw(lines: Sequence[Line], theme: Mapping, output: str | Path | BytesIO, c
             head_font if index < 3 or line.kind in ('title', 'head') else
             (bold if line.kind == 'brand' else normal))
         color = _line_color(line, theme)
-        inverse = theme['mono'] and line.verdict == 'contradicted'
+        inverse = (theme['mono'] and line.verdict == 'contradicted'
+                   and (line.count is None or line.count > 0))
         if inverse:
             draw.rectangle((shape['left'] - 8, top - 4, shape['paper_right'], top + line_height - 6),
                            fill=color)

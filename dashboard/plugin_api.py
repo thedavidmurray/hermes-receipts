@@ -109,7 +109,7 @@ def current(session_id: str = Query(..., min_length=1, max_length=256),
         try:
             # Real telemetry for the fine print; a read error must not break the pane.
             metrics = facts_from_state(source, session_id=session_id)
-        except (OSError, ValueError):
+        except (OSError, ValueError, sqlite3.Error):
             metrics = {}
         public = to_public_receipt(private, {}, metrics=metrics, **style)
         png = io.BytesIO()

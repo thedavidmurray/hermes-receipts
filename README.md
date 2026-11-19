@@ -113,10 +113,11 @@ verdict block prints for every kit, every field list and every theme.
 Every verdict prints its glyph and its word, in every theme. `COMPLETION` is the
 **worst** of the completion verdict and every *required* criterion — so it is green
 only when all required criteria are supported, and no criterion can ever upgrade a
-completion claim. In a monochrome theme a contradicted verdict is drawn as inverse
-video (light text on an ink bar) so it cannot be mistaken for a supported one.
+completion claim. In a monochrome theme a contradicted claim is drawn as inverse
+video (paper-colour text on an ink bar) so it cannot be mistaken for a supported one.
 Statement counts (declared claims, and each report group) are coloured per
-category, one line per verdict.
+category, one line per verdict; a contradicted count uses inverse video only
+when the count is above zero.
 
 ### Fields
 
@@ -186,7 +187,10 @@ restyle a verdict: a theme file carrying any `hide_*`, `soften_*`, `suppress_*`,
 rather than ignored, non-monochrome themes must give every verdict its own ink, and
 every verdict ink must reach a 4.5:1 contrast ratio against its own paper.
 Monochrome themes may declare one ink only — a mono theme cannot smuggle a green in
-for `supported`.
+for `supported`. `green_bar` bands derive their optional `bar` colour from paper
+(6% toward ink by default), render only on light paper, and are skipped if any
+rendered text ink would fall below 4.5:1 against a band. See the
+[themes README](v2/themes/README.md) for the pitfall and regression provenance.
 
 ### Customize your printer
 

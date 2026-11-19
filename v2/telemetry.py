@@ -9,7 +9,8 @@ field renderer prints ``n/a``).
 Every read is bounded:
 
 * one session row by primary key,
-* one ``session_model_usage`` row by session,
+* one ``session_model_usage`` row by session (or two distinct provider values
+  when optional ordering metadata is absent),
 * a bounded window of messages for turns / top tools / files touched.
 
 Session-scoped token and cost totals are labelled as such through
@@ -144,9 +145,17 @@ def _provider(session: Mapping, columns: set[str], conn: sqlite3.Connection,
     billing = _col(session, columns, 'billing_provider')
     if isinstance(billing, str) and billing.strip():
         return billing.strip()
-    if 'session_model_usage' in {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}:
-        row = conn.execute('SELECT billing_provider FROM session_model_usage WHERE session_id=? '
-                           'ORDER BY last_seen DESC LIMIT 1', (session_id,)).fetchone()
+    usage_columns = _columns(conn, 'session_model_usage')
+    if {'session_id', 'billing_provider'} <= usage_columns:
+        if 'last_seen' in usage_columns:
+            row = conn.execute('SELECT billing_provider FROM session_model_usage WHERE session_id=? '
+                               'ORDER BY last_seen DESC LIMIT 1', (session_id,)).fetchone()
+        else:
+            # Without ordering metadata, only an unambiguous provider is evidence.
+            # Two distinct values suffice to reject ambiguity; never guess latest.
+            rows = conn.execute('SELECT DISTINCT billing_provider FROM session_model_usage '
+                                'WHERE session_id=? LIMIT 2', (session_id,)).fetchall()
+            row = rows[0] if len(rows) == 1 else None
         if row is not None and isinstance(row['billing_provider'], str) and row['billing_provider'].strip():
             return row['billing_provider'].strip()
     model = _col(session, columns, 'model')
